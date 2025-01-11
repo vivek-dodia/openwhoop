@@ -1,0 +1,19 @@
+[package]
+name = "openwhoop"
+version = "0.1.0"
+edition = "2021"
+default-run = "openwhoop"
+
+[dependencies]
+anyhow = "1.0.95"
+btleplug = "0.11.7"
+chrono = "0.4.39"
+clap = { version = "4.5.26", features = ["env", "derive"] }
+db-entities = { version = "0.1.0", path = "../db-entities" }
+dotenv = { version = "0.15.0", features = ["clap", "cli"] }
+futures = "0.3.31"
+log = "0.4.24"
+sea-orm = "1.1.4"
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros"] }
+uuid = "1.11.1"
+whoop = { version = "0.1.0", path = "../whoop" }

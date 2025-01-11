@@ -1,0 +1,2 @@
+[workspace]
+members = ["src/whoop", "src/sea-migrations", "src/db-entities", "src/openwhoop"]
