@@ -1,4 +1,5 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
+use migration::{Migrator, MigratorTrait};
 use sea_orm::{ActiveModelTrait, ActiveValue::NotSet, Database, DatabaseConnection, Set};
 use uuid::Uuid;
 
@@ -11,6 +12,10 @@ impl DatabaseHandler {
         let db = Database::connect(path)
             .await
             .expect("Unable to connect to db");
+
+        Migrator::up(&db, None)
+            .await
+            .expect("Error running migrations");
 
         Self { db }
     }

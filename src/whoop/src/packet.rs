@@ -106,15 +106,14 @@ impl WhoopPacket {
 
     pub fn framed_packet(&self) -> Vec<u8> {
         let pkt = self.create_packet();
-        let length = (pkt.len() + 4) as u16;
+        let length = pkt.len() as u16 + 4;
         let length_buffer = length.to_le_bytes();
         let crc8_value = Self::crc8(&length_buffer);
 
         let crc32_value = Self::crc32(&pkt);
         let crc32_buffer = crc32_value.to_le_bytes();
 
-        let mut framed_packet = Vec::with_capacity(1 + 2 + 1 + pkt.len() + 4);
-        framed_packet.push(Self::SOF);
+        let mut framed_packet = vec![Self::SOF];
         framed_packet.extend_from_slice(&length_buffer);
         framed_packet.push(crc8_value);
         framed_packet.extend_from_slice(&pkt);
@@ -128,7 +127,7 @@ impl fmt::Display for WhoopPacket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "WhoopPacket {{\n    Type: {:?},\n    Seq: {},\n    Cmd: {:?},\n    Payload: {}\n}}",
+            "WhoopPacket {{\n\tType: {:?},\n\tSeq: {},\n\tCmd: {:?},\n\tPayload: {}\n}}",
             self.packet_type,
             self.seq,
             self.cmd,

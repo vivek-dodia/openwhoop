@@ -4,14 +4,9 @@ OpenWhoop is project that allows you to download heart rate data directly from y
 
 ### How to Run?
 
-First create empty sqlite db and copy `.env.example`
+First you need to copy `.env.example` into `.env` and then scan until you find your Whoop device:
 ```sh
-sqlite3 db.sqlite "VACUUM;"
 cp .env.example .env
-```
-
-After that scan until you find your Whoop device:
-```sh
 cargo run -r -- scan
 ```
 

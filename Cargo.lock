@@ -1760,6 +1760,7 @@ dependencies = [
  "dotenv",
  "futures",
  "log",
+ "migration",
  "sea-orm",
  "tokio",
  "uuid",

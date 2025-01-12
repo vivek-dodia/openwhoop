@@ -1,7 +1,7 @@
 use crate::{
     constants::{CommandNumber, MetadataType, PacketType},
     helpers::BufferReader,
-    WhoopPacket, WhoopError,
+    WhoopError, WhoopPacket,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -51,10 +51,7 @@ impl WhoopData {
         let unix = packet.data.read_u32_le()?;
 
         match command {
-            Ok(CommandNumber::RunAlarm) => {
-                println!("{}", packet);
-                Ok(Self::RunAlarm { unix })
-            }
+            Ok(CommandNumber::RunAlarm) => Ok(Self::RunAlarm { unix }),
             Ok(CommandNumber::SendR10R11Realtime)
             | Ok(CommandNumber::ToggleRealtimeHr)
             | Ok(CommandNumber::GetClock)
@@ -103,8 +100,8 @@ impl WhoopData {
     }
 
     fn parse_metadata(mut packet: WhoopPacket) -> Result<Self, WhoopError> {
-        let cmd = MetadataType::from_u8(packet.cmd)
-            .ok_or(WhoopError::InvalidMetadataType(packet.cmd))?;
+        let cmd =
+            MetadataType::from_u8(packet.cmd).ok_or(WhoopError::InvalidMetadataType(packet.cmd))?;
 
         let unix = packet.data.read_u32_le()?;
         let data = packet.data.read_u32_le()?;

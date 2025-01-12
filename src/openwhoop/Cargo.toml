@@ -13,6 +13,7 @@ db-entities = { version = "0.1.0", path = "../db-entities" }
 dotenv = { version = "0.15.0", features = ["clap", "cli"] }
 futures = "0.3.31"
 log = "0.4.24"
+migration.path = "../sea-migrations"
 sea-orm = "1.1.4"
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros"] }
 uuid = "1.11.1"
