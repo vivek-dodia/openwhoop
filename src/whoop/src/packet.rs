@@ -13,6 +13,10 @@ pub struct WhoopPacket {
 impl WhoopPacket {
     const SOF: u8 = 0xAA;
 
+    pub fn with_seq(self, seq: u8) -> WhoopPacket {
+        WhoopPacket { seq, ..self }
+    }
+
     pub fn new(packet_type: PacketType, seq: u8, cmd: u8, data: Vec<u8>) -> Self {
         Self {
             packet_type,

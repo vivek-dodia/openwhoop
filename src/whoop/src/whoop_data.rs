@@ -104,6 +104,7 @@ impl WhoopData {
             MetadataType::from_u8(packet.cmd).ok_or(WhoopError::InvalidMetadataType(packet.cmd))?;
 
         let unix = packet.data.read_u32_le()?;
+        let _padding = packet.data.read::<6>()?;
         let data = packet.data.read_u32_le()?;
 
         Ok(Self::HistoryMetadata { unix, data, cmd })
@@ -216,5 +217,33 @@ mod tests {
         assert_eq!(data, WhoopData::RunAlarm { unix: 1733561527 });
 
         dbg!(data);
+    }
+
+    #[test]
+    fn parse_metadata() {
+        let bytes = hex::decode("aa1c00ab311002a9fc8367205337000000257e00000a0000000000007ac020f8")
+            .expect("invalid bytes");
+        let packet = WhoopPacket::from_data(bytes).expect("Invalid packet");
+        let data = WhoopData::from_packet(packet).expect("invalid packet");
+        assert_eq!(
+            data,
+            WhoopData::HistoryMetadata {
+                unix: 1736703145,
+                data: 32293,
+                cmd: MetadataType::HistoryEnd
+            }
+        );
+
+        let bytes = hex::decode("aa2c005231010146fb8367404c0600000010000000020000002900000010000000030000000000000008020055fd251d").expect("invalid bytes");
+        let packet = WhoopPacket::from_data(bytes).expect("Invalid packet");
+        let data = WhoopData::from_packet(packet).expect("invalid packet");
+        assert_eq!(
+            data,
+            WhoopData::HistoryMetadata {
+                unix: 1736702790,
+                data: 16,
+                cmd: MetadataType::HistoryStart,
+            }
+        );
     }
 }

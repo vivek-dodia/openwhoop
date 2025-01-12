@@ -11,7 +11,9 @@ chrono = "0.4.39"
 clap = { version = "4.5.26", features = ["env", "derive"] }
 db-entities = { version = "0.1.0", path = "../db-entities" }
 dotenv = { version = "0.15.0", features = ["clap", "cli"] }
+env_logger = "0.11.6"
 futures = "0.3.31"
+hex = "0.4.3"
 log = "0.4.24"
 migration.path = "../sea-migrations"
 sea-orm = "1.1.4"

@@ -14,5 +14,5 @@ pub enum WhoopError {
     InvalidMetadataType(u8),
     InvalidCommandType(u8),
     InvalidConsoleLog,
-    Unimplemented
+    Unimplemented,
 }

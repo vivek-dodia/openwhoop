@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate log;
-
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -36,11 +33,16 @@ pub enum OpenWhoopCommand {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     if let Err(error) = dotenv() {
-        error!("{}", error);
+        println!("{}", error);
     }
+
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .filter_module("sqlx::query", log::LevelFilter::Off)
+        .init();
 
     let cli = OpenWhoop::parse();
     let db_handler = DatabaseHandler::new(cli.database_url).await;
+
     let manager = Manager::new().await?;
     let adapter = match cli.ble_interface {
         Some(interface) => {
@@ -73,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
         OpenWhoopCommand::DownloadHistory { whoop_addr } => {
             let peripheral = scan_command(adapter, Some(whoop_addr)).await?;
             let mut whoop = Whoop::new(peripheral, db_handler);
-    
+
             whoop.connect().await?;
             whoop.initialize().await?;
 

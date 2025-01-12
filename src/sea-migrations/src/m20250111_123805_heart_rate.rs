@@ -20,7 +20,12 @@ impl MigrationTrait for Migration {
                     )
                     // Sqlite and sea orm doesn't have `u8`
                     .col(ColumnDef::new(HeartRate::Bpm).small_integer().not_null())
-                    .col(ColumnDef::new(HeartRate::Time).date_time().not_null())
+                    .col(
+                        ColumnDef::new(HeartRate::Time)
+                            .date_time()
+                            .not_null()
+                            .unique_key(),
+                    )
                     .col(ColumnDef::new(HeartRate::RrIntervals).text().not_null())
                     .to_owned(),
             )
