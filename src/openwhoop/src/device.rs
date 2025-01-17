@@ -8,7 +8,7 @@ use futures::StreamExt;
 use tokio::time::sleep;
 use uuid::Uuid;
 use whoop::{
-    constants::{MetadataType, CMD_TO_STRAP, DATA_FROM_STRAP, WHOOP_SERVICE},
+    constants::{MetadataType, CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE},
     WhoopData, WhoopPacket,
 };
 
@@ -46,9 +46,9 @@ impl Whoop {
 
     pub async fn initialize(&mut self) -> anyhow::Result<()> {
         self.subscribe(DATA_FROM_STRAP).await?;
-        // self.subscribe(CMD_FROM_STRAP).await?;
-        // self.subscribe(EVENTS_FROM_STRAP).await?;
-        // self.subscribe(MEMFAULT).await?;
+        self.subscribe(CMD_FROM_STRAP).await?;
+        self.subscribe(EVENTS_FROM_STRAP).await?;
+        self.subscribe(MEMFAULT).await?;
 
         // self.send_command(WhoopPacket::hello_harvard()).await?;
         // self.send_command(WhoopPacket::set_time()).await?;
