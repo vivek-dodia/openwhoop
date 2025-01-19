@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             let mut c_adapter = Err(anyhow!("Adapter: `{}` not found", interface));
             for adapter in adapters {
                 let name = adapter.adapter_info().await?;
-                if name == interface {
+                if name.starts_with(&interface) {
                     c_adapter = Ok(adapter);
                     break;
                 }
