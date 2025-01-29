@@ -4,13 +4,12 @@ use crate::{
     WhoopError, WhoopPacket,
 };
 
+mod history;
+pub use history::{Activity, HistoryReading, ParsedHistoryReading};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum WhoopData {
-    HistoryReading {
-        unix: u32,
-        bpm: u8,
-        rr: Vec<u16>,
-    },
+    HistoryReading(HistoryReading),
     HistoryMetadata {
         unix: u32,
         data: u32,
@@ -128,7 +127,14 @@ impl WhoopData {
             return Err(WhoopError::InvalidData);
         }
 
-        Ok(Self::HistoryReading { unix, bpm, rr })
+        let activity = packet.read_u32_le()?;
+
+        Ok(Self::HistoryReading(HistoryReading {
+            unix,
+            bpm,
+            rr,
+            activity,
+        }))
     }
 }
 
@@ -136,7 +142,7 @@ impl WhoopData {
 mod tests {
     use crate::{
         constants::{MetadataType, PacketType},
-        whoop_data::WhoopData,
+        whoop_data::{history::HistoryReading, WhoopData},
         WhoopPacket,
     };
 
@@ -148,11 +154,12 @@ mod tests {
 
         assert_eq!(
             data,
-            WhoopData::HistoryReading {
+            WhoopData::HistoryReading(HistoryReading {
                 unix: 1718161626,
                 bpm: 54,
-                rr: vec![1173]
-            }
+                rr: vec![1173],
+                activity: 1285750784
+            })
         );
 
         let data = hex::decode("aa6400a12f1805cb6cc100f7715c67300b805454015700000000000000000000005161cda013a03dcdcc1cbbd723133ee146873f00028a46cdcc1cbbd723133ee146873f28026d029c03700257019004010c020c3000000000000001b9120000000000000a9c4cac").expect("Invalid hex data");
@@ -161,11 +168,12 @@ mod tests {
 
         assert_eq!(
             data,
-            WhoopData::HistoryReading {
+            WhoopData::HistoryReading(HistoryReading {
                 unix: 1734111735,
                 bpm: 87,
-                rr: Vec::new()
-            }
+                rr: Vec::new(),
+                activity: 1632698368
+            })
         );
 
         let data = hex::decode("aa1c00ab31370268ae7667702d32000000c7b6000010000000000000e01eba47")
@@ -178,7 +186,7 @@ mod tests {
             data,
             WhoopData::HistoryMetadata {
                 unix: 1735831144,
-                data: 3288432,
+                data: 46791,
                 cmd: MetadataType::HistoryEnd
             }
         );

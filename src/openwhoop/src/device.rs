@@ -1,33 +1,43 @@
 use std::{collections::BTreeSet, time::Duration};
 
 use btleplug::{
-    api::{CharPropFlags, Characteristic, Peripheral as _, ValueNotification, WriteType},
+    api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
     platform::Peripheral,
 };
 use futures::StreamExt;
 use tokio::time::sleep;
 use uuid::Uuid;
 use whoop::{
-    constants::{MetadataType, CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE},
-    WhoopData, WhoopPacket,
+    constants::{
+        CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
+    },
+    WhoopPacket,
 };
 
-use crate::DatabaseHandler;
+use crate::{openwhoop::OpenWhoop, DatabaseHandler};
 
-pub struct Whoop {
+pub struct WhoopDevice {
     peripheral: Peripheral,
-    db: DatabaseHandler,
+    whoop: OpenWhoop,
 }
 
-impl Whoop {
+impl WhoopDevice {
     pub fn new(peripheral: Peripheral, db: DatabaseHandler) -> Self {
-        Self { peripheral, db }
+        Self {
+            peripheral,
+            whoop: OpenWhoop::new(db),
+        }
     }
 
     pub async fn connect(&mut self) -> anyhow::Result<()> {
         self.peripheral.connect().await?;
         self.peripheral.discover_services().await?;
         Ok(())
+    }
+
+    pub async fn is_connected(&mut self) -> anyhow::Result<bool> {
+        let is_connected = self.peripheral.is_connected().await?;
+        Ok(is_connected)
     }
 
     fn create_char(characteristic: Uuid) -> Characteristic {
@@ -49,6 +59,9 @@ impl Whoop {
         self.subscribe(CMD_FROM_STRAP).await?;
         self.subscribe(EVENTS_FROM_STRAP).await?;
         self.subscribe(MEMFAULT).await?;
+
+        self.send_command(WhoopPacket::enter_high_freq_sync())
+            .await?;
 
         // self.send_command(WhoopPacket::hello_harvard()).await?;
         // self.send_command(WhoopPacket::set_time()).await?;
@@ -85,8 +98,9 @@ impl Whoop {
                     }
                 },
                 Some(notification) = notification => {
-                    if self.handle_notification(notification).await?{
-                        break
+                    let packet = self.whoop.store_packet(notification).await?;
+                    if let Some(packet) = self.whoop.handle_packet(packet).await?{
+                        self.send_command(packet).await?;
                     }
                 }
             }
@@ -98,50 +112,5 @@ impl Whoop {
     async fn on_sleep(&mut self) -> anyhow::Result<bool> {
         let is_connected = self.peripheral.is_connected().await?;
         Ok(!is_connected)
-    }
-
-    async fn handle_notification(
-        &mut self,
-        notification: ValueNotification,
-    ) -> anyhow::Result<bool> {
-        let packet = self
-            .db
-            .create_packet(notification.uuid, notification.value)
-            .await?;
-
-        match packet.uuid {
-            DATA_FROM_STRAP => {
-                let packet = WhoopPacket::from_data(packet.bytes)?;
-
-                let Ok(data) = WhoopData::from_packet(packet) else {
-                    return Ok(false);
-                };
-
-                match data {
-                    WhoopData::HistoryReading { unix, bpm, rr } => {
-                        self.db.create_reading(unix, bpm, rr).await?;
-                    }
-                    WhoopData::HistoryMetadata { data, cmd, .. } => match cmd {
-                        MetadataType::HistoryComplete => return Ok(true),
-                        MetadataType::HistoryStart => {}
-                        MetadataType::HistoryEnd => {
-                            let packet = WhoopPacket::history_end(data);
-                            self.send_command(packet).await?;
-                        }
-                    },
-                    WhoopData::ConsoleLog { log, .. } => {
-                        trace!(target: "ConsoleLog", "{}", log);
-                    }
-                    WhoopData::RunAlarm { .. } => {}
-                    WhoopData::Event { .. } => {}
-                    WhoopData::UnknownEvent { .. } => {}
-                }
-            }
-            _ => {
-                // todo!()
-            }
-        }
-
-        Ok(false)
     }
 }

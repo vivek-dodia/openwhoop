@@ -6,6 +6,24 @@ use crate::{
 };
 
 impl WhoopPacket {
+    pub fn enter_high_freq_sync() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::EnterHighFreqSync.as_u8(),
+            vec![],
+        )
+    }
+
+    pub fn exit_high_freq_sync() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ExitHighFreqSync.as_u8(),
+            vec![],
+        )
+    }
+
     pub fn history_start() -> WhoopPacket {
         WhoopPacket::new(
             PacketType::Command,

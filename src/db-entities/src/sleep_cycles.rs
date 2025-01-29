@@ -3,16 +3,18 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "heart_rate")]
+#[sea_orm(table_name = "sleep_cycles")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
-    pub bpm: i16,
-    #[sea_orm(unique)]
-    pub time: DateTime,
-    #[sea_orm(column_type = "Text")]
-    pub rr_intervals: String,
-    pub activity: Option<i64>,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Uuid,
+    pub start: DateTime,
+    pub end: DateTime,
+    pub min_bpm: i16,
+    pub max_bpm: i16,
+    pub avg_bpm: i16,
+    pub min_hrv: i32,
+    pub max_hrv: i32,
+    pub avg_hrv: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -1,11 +1,17 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
-use log::info;
+use db_entities::{packets, sleep_cycles};
 use migration::{Migrator, MigratorTrait, OnConflict};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::NotSet, Database, DatabaseConnection, EntityTrait, Set,
+    prelude::Expr, ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, Condition, Database,
+    DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Set,
 };
 use uuid::Uuid;
 
+mod history;
+pub use history::SearchHistory;
+use whoop::constants::DATA_FROM_STRAP;
+
+#[derive(Clone)]
 pub struct DatabaseHandler {
     db: DatabaseConnection,
 }
@@ -38,7 +44,13 @@ impl DatabaseHandler {
         Ok(packet)
     }
 
-    pub async fn create_reading(&self, unix: u32, bpm: u8, rr: Vec<u16>) -> anyhow::Result<()> {
+    pub async fn create_reading(
+        &self,
+        unix: u32,
+        bpm: u8,
+        rr: Vec<u16>,
+        activity: i64,
+    ) -> anyhow::Result<()> {
         let time = timestamp_to_local(unix);
         info!(target: "HistoryReading", "time: {}, bpm: {}", time, bpm);
 
@@ -47,18 +59,49 @@ impl DatabaseHandler {
             bpm: Set(bpm as i16),
             time: Set(time),
             rr_intervals: Set(rr_to_string(rr)),
+            activity: Set(Some(activity)),
         };
 
         let _model = db_entities::heart_rate::Entity::insert(packet)
             .on_conflict(
                 OnConflict::column(db_entities::heart_rate::Column::Time)
                     .update_column(db_entities::heart_rate::Column::Bpm)
+                    .update_column(db_entities::heart_rate::Column::RrIntervals)
+                    .update_column(db_entities::heart_rate::Column::Activity)
                     .to_owned(),
             )
             .exec(&self.db)
             .await?;
 
         Ok(())
+    }
+
+    pub async fn get_packets(&self, id: i32) -> anyhow::Result<Vec<packets::Model>> {
+        let stream = packets::Entity::find()
+            .filter(packets::Column::Id.gt(id))
+            .filter(packets::Column::Uuid.eq(DATA_FROM_STRAP))
+            .filter(
+                Condition::any()
+                    .add(Expr::cust("LOWER(HEX(bytes))").like("aa6400a1%"))
+                    .add(Expr::cust("LOWER(HEX(bytes))").like("aa5c00f0%")),
+            )
+            .order_by_asc(packets::Column::Id)
+            .limit(10_000)
+            .all(&self.db)
+            .await?;
+
+        Ok(stream)
+    }
+
+    pub async fn get_latest_sleep(
+        &self,
+    ) -> anyhow::Result<Option<db_entities::sleep_cycles::Model>> {
+        let sleep = sleep_cycles::Entity::find()
+            .order_by_desc(sleep_cycles::Column::End)
+            .one(&self.db)
+            .await?;
+
+        Ok(sleep)
     }
 }
 

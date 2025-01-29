@@ -9,6 +9,6 @@ pub mod constants;
 mod helpers;
 
 mod whoop_data;
-pub use whoop_data::WhoopData;
+pub use whoop_data::*;
 
 mod packet_implementations;

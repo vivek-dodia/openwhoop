@@ -2,7 +2,10 @@
 extern crate log;
 
 mod db;
-pub use db::DatabaseHandler;
+pub use db::{DatabaseHandler, SearchHistory};
 
 mod device;
-pub use device::Whoop;
+pub use device::WhoopDevice;
+
+mod openwhoop;
+pub use openwhoop::OpenWhoop;

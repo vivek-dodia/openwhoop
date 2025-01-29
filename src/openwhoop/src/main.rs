@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -7,12 +10,12 @@ use btleplug::{
 };
 use clap::{Parser, Subcommand};
 use dotenv::dotenv;
-use openwhoop::{DatabaseHandler, Whoop};
+use openwhoop::{DatabaseHandler, OpenWhoop, SearchHistory, WhoopDevice};
 use tokio::time::sleep;
-use whoop::constants::WHOOP_SERVICE;
+use whoop::{constants::WHOOP_SERVICE, ParsedHistoryReading, WhoopPacket};
 
 #[derive(Parser)]
-pub struct OpenWhoop {
+pub struct OpenWhoopCli {
     #[arg(env, long)]
     pub database_url: String,
     #[arg(env, long)]
@@ -28,6 +31,8 @@ pub enum OpenWhoopCommand {
         #[arg(long, env)]
         whoop_addr: BDAddr,
     },
+    ReRun,
+    DetectEvents,
 }
 
 #[tokio::main]
@@ -40,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         .filter_module("sqlx::query", log::LevelFilter::Off)
         .init();
 
-    let cli = OpenWhoop::parse();
+    let cli = OpenWhoopCli::parse();
     let db_handler = DatabaseHandler::new(cli.database_url).await;
 
     let manager = Manager::new().await?;
@@ -74,13 +79,83 @@ async fn main() -> anyhow::Result<()> {
         }
         OpenWhoopCommand::DownloadHistory { whoop_addr } => {
             let peripheral = scan_command(adapter, Some(whoop_addr)).await?;
-            let mut whoop = Whoop::new(peripheral, db_handler);
+            let mut whoop = WhoopDevice::new(peripheral, db_handler);
 
             whoop.connect().await?;
             whoop.initialize().await?;
 
-            whoop.sync_history().await
+            let result = whoop.sync_history().await;
+            if let Err(e) = result {
+                error!("{}", e);
+            }
+
+            loop {
+                if let Ok(true) = whoop.is_connected().await {
+                    whoop
+                        .send_command(WhoopPacket::exit_high_freq_sync())
+                        .await?;
+                    break;
+                } else {
+                    whoop.connect().await?;
+                    sleep(Duration::from_secs(1)).await;
+                }
+            }
+
+            Ok(())
         }
+        OpenWhoopCommand::ReRun => {
+            let whoop = OpenWhoop::new(db_handler.clone());
+            let mut id = 0;
+            loop {
+                let packets = db_handler.get_packets(id).await?;
+                if packets.is_empty() {
+                    break;
+                }
+
+                for packet in packets {
+                    id = packet.id;
+                    whoop.handle_packet(packet).await?;
+                }
+
+                println!("{}", id);
+            }
+
+            Ok(())
+        }
+        OpenWhoopCommand::DetectEvents => {
+            let from = db_handler.get_latest_sleep().await?.map(|sleep| sleep.end);
+
+            let options = SearchHistory { from };
+
+            let mut history = db_handler
+                .search_history(options)
+                .await?
+                .drain(0..86400)
+                .collect::<Vec<_>>();
+
+            smooth_spikes(&mut history);
+
+            Ok(())
+        }
+    }
+}
+
+fn smooth_spikes(data: &mut [ParsedHistoryReading]) {
+    if data.len() < 3 {
+        return;
+    }
+
+    let mut new_values = data.iter().map(|m| m.activity).collect::<Vec<_>>();
+
+    for i in 1..data.len() - 1 {
+        if data[i - 1].activity == data[i + 1].activity && data[i].activity != data[i - 1].activity
+        {
+            new_values[i] = data[i - 1].activity;
+        }
+    }
+
+    for (i, model) in data.iter_mut().enumerate() {
+        model.activity = new_values[i];
     }
 }
 

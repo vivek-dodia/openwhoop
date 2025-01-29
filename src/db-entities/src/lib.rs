@@ -4,3 +4,4 @@ pub mod prelude;
 
 pub mod heart_rate;
 pub mod packets;
+pub mod sleep_cycles;
