@@ -10,9 +10,9 @@ use btleplug::{
 };
 use clap::{Parser, Subcommand};
 use dotenv::dotenv;
-use openwhoop::{DatabaseHandler, OpenWhoop, SearchHistory, WhoopDevice};
+use openwhoop::{DatabaseHandler, OpenWhoop, WhoopDevice};
 use tokio::time::sleep;
-use whoop::{constants::WHOOP_SERVICE, ParsedHistoryReading, WhoopPacket};
+use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
 
 #[derive(Parser)]
 pub struct OpenWhoopCli {
@@ -123,39 +123,10 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         OpenWhoopCommand::DetectEvents => {
-            let from = db_handler.get_latest_sleep().await?.map(|sleep| sleep.end);
-
-            let options = SearchHistory { from };
-
-            let mut history = db_handler
-                .search_history(options)
-                .await?
-                .drain(0..86400)
-                .collect::<Vec<_>>();
-
-            smooth_spikes(&mut history);
-
+            let whoop = OpenWhoop::new(db_handler);
+            whoop.detect_sleeps().await?;
             Ok(())
         }
-    }
-}
-
-fn smooth_spikes(data: &mut [ParsedHistoryReading]) {
-    if data.len() < 3 {
-        return;
-    }
-
-    let mut new_values = data.iter().map(|m| m.activity).collect::<Vec<_>>();
-
-    for i in 1..data.len() - 1 {
-        if data[i - 1].activity == data[i + 1].activity && data[i].activity != data[i - 1].activity
-        {
-            new_values[i] = data[i - 1].activity;
-        }
-    }
-
-    for (i, model) in data.iter_mut().enumerate() {
-        model.activity = new_values[i];
     }
 }
 

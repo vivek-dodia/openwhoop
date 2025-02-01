@@ -11,6 +11,8 @@ mod history;
 pub use history::SearchHistory;
 use whoop::constants::DATA_FROM_STRAP;
 
+use crate::algo::SleepCycle;
+
 #[derive(Clone)]
 pub struct DatabaseHandler {
     db: DatabaseConnection,
@@ -102,6 +104,41 @@ impl DatabaseHandler {
             .await?;
 
         Ok(sleep)
+    }
+
+    pub async fn create_sleep(&self, sleep: SleepCycle) -> anyhow::Result<()> {
+        let model = sleep_cycles::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            sleep_id: Set(sleep.id),
+            start: Set(sleep.start),
+            end: Set(sleep.end),
+            min_bpm: Set(sleep.min_bpm.into()),
+            max_bpm: Set(sleep.max_bpm.into()),
+            avg_bpm: Set(sleep.avg_bpm.into()),
+            min_hrv: Set(sleep.min_hrv.into()),
+            max_hrv: Set(sleep.max_hrv.into()),
+            avg_hrv: Set(sleep.max_hrv.into()),
+        };
+
+        let _r = sleep_cycles::Entity::insert(model)
+            .on_conflict(
+                OnConflict::column(sleep_cycles::Column::SleepId)
+                    .update_columns([
+                        sleep_cycles::Column::Start,
+                        sleep_cycles::Column::End,
+                        sleep_cycles::Column::MinBpm,
+                        sleep_cycles::Column::MaxBpm,
+                        sleep_cycles::Column::AvgBpm,
+                        sleep_cycles::Column::MinHrv,
+                        sleep_cycles::Column::MaxHrv,
+                        sleep_cycles::Column::AvgHrv,
+                    ])
+                    .to_owned(),
+            )
+            .exec(&self.db)
+            .await?;
+
+        Ok(())
     }
 }
 

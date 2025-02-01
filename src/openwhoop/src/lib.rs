@@ -9,3 +9,5 @@ pub use device::WhoopDevice;
 
 mod openwhoop;
 pub use openwhoop::OpenWhoop;
+
+pub mod algo;

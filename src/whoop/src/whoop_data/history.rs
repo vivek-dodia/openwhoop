@@ -23,7 +23,7 @@ pub enum Activity {
     Active,
     Inactive,
     Sleep,
-    Wake,
+    Awake,
 }
 
 impl From<i64> for Activity {
@@ -32,7 +32,7 @@ impl From<i64> for Activity {
             0..500_000_000 => Self::Inactive,
             500_000_000..1_000_000_000 => Self::Active,
             1_000_000_000..1_500_000_000 => Self::Sleep,
-            1_500_000_000..=i64::MAX => Self::Wake,
+            1_500_000_000..=i64::MAX => Self::Awake,
             _ => {
                 println!("{}, {}", value, u64::from_le_bytes(value.to_le_bytes()));
                 Self::Unknown

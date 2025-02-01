@@ -1,12 +1,13 @@
 use chrono::NaiveDateTime;
 use db_entities::heart_rate;
-use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QuerySelect};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use whoop::{Activity, ParsedHistoryReading};
 
 use super::DatabaseHandler;
 
 pub struct SearchHistory {
     pub from: Option<NaiveDateTime>,
+    pub limit: Option<u64>,
 }
 
 impl SearchHistory {
@@ -20,10 +21,12 @@ impl DatabaseHandler {
         &self,
         options: SearchHistory,
     ) -> anyhow::Result<Vec<ParsedHistoryReading>> {
+        let limit = options.limit;
         let history = heart_rate::Entity::find()
             .filter(options.conditions())
             .filter(heart_rate::Column::Activity.is_not_null())
-            .limit(100000)
+            .limit(limit)
+            .order_by_asc(heart_rate::Column::Time)
             .all(&self.db)
             .await?
             .into_iter()

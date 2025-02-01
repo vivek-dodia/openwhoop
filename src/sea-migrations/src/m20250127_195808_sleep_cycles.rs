@@ -17,6 +17,12 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
+                    .col(
+                        ColumnDef::new(SleepCycles::SleepId)
+                            .date()
+                            .not_null()
+                            .unique_key(),
+                    )
                     .col(ColumnDef::new(SleepCycles::Start).date_time().not_null())
                     .col(ColumnDef::new(SleepCycles::End).date_time().not_null())
                     .col(
@@ -53,6 +59,7 @@ impl MigrationTrait for Migration {
 enum SleepCycles {
     Table,
     Id,
+    SleepId,
     Start,
     End,
     MinBpm,
