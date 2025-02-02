@@ -951,7 +951,7 @@ pub struct SearchActivityPeriods {
 }
 
 impl SearchActivityPeriods {
-    fn to_query(self) -> Condition {
+    fn query(self) -> Condition {
         Condition::all()
             .add_option(self.from.map(|from| activities::Column::Start.gt(from)))
             .add_option(self.to.map(|to| activities::Column::End.lt(to)))
@@ -989,7 +989,7 @@ impl DatabaseHandler {
         options: SearchActivityPeriods,
     ) -> anyhow::Result<Vec<ActivityPeriod>> {
         let activities = activities::Entity::find()
-            .filter(options.to_query())
+            .filter(options.query())
             .all(&self.db)
             .await?
             .into_iter()

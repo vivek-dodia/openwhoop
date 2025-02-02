@@ -120,7 +120,7 @@ impl OpenWhoop {
                     to: event.end,
                     activity,
                 };
-                
+
                 self.database.create_activity(activity).await?;
             }
         }
