@@ -15,7 +15,7 @@ use crate::algo::SleepCycle;
 
 #[derive(Clone)]
 pub struct DatabaseHandler {
-    db: DatabaseConnection,
+    pub(crate) db: DatabaseConnection,
 }
 
 impl DatabaseHandler {

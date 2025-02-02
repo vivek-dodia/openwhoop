@@ -5,14 +5,18 @@ use whoop::{Activity, ParsedHistoryReading};
 
 use super::DatabaseHandler;
 
+#[derive(Default)]
 pub struct SearchHistory {
     pub from: Option<NaiveDateTime>,
+    pub to: Option<NaiveDateTime>,
     pub limit: Option<u64>,
 }
 
 impl SearchHistory {
     pub(crate) fn conditions(self) -> Condition {
-        Condition::all().add_option(self.from.map(|from| heart_rate::Column::Time.gt(from)))
+        Condition::all()
+            .add_option(self.from.map(|from| heart_rate::Column::Time.gt(from)))
+            .add_option(self.to.map(|to| heart_rate::Column::Time.lt(to)))
     }
 }
 

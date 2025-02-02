@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod activities;
 pub mod heart_rate;
 pub mod packets;
 pub mod sleep_cycles;

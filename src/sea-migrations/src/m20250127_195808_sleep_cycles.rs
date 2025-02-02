@@ -56,7 +56,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-enum SleepCycles {
+pub enum SleepCycles {
     Table,
     Id,
     SleepId,

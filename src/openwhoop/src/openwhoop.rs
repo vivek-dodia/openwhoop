@@ -2,11 +2,12 @@ use btleplug::api::ValueNotification;
 use db_entities::packets;
 use whoop::{
     constants::{MetadataType, DATA_FROM_STRAP},
-    HistoryReading, WhoopData, WhoopPacket,
+    Activity, HistoryReading, WhoopData, WhoopPacket,
 };
 
 use crate::{
     algo::{activity::MAX_SLEEP_PAUSE, ActivityPeriod, SleepCycle},
+    types::activities,
     DatabaseHandler, SearchHistory,
 };
 
@@ -86,6 +87,47 @@ impl OpenWhoop {
             .map(SleepCycle::from))
     }
 
+    /// TODO: refactor: this will detect events until last sleep, so if function [`OpenWhoop::detect_sleeps`] has not been called for a week, this will not detect events in last week
+    pub async fn detect_events(&self) -> anyhow::Result<()> {
+        let sleeps = self
+            .database
+            .get_sleep_cycles()
+            .await?
+            .windows(2)
+            .map(|sleep| (sleep[0].id, sleep[0].end, sleep[1].start))
+            .collect::<Vec<_>>();
+
+        for (cycle_id, start, end) in sleeps {
+            let options = SearchHistory {
+                from: Some(start),
+                to: Some(end),
+                ..Default::default()
+            };
+
+            let mut history = self.database.search_history(options).await?;
+            let events = ActivityPeriod::detect(history.as_mut_slice());
+
+            for event in events {
+                let activity = match event.activity {
+                    Activity::Active => activities::ActivityType::Activity,
+                    Activity::Sleep => activities::ActivityType::Nap,
+                    _ => continue,
+                };
+
+                let activity = activities::ActivityPeriod {
+                    period_id: cycle_id,
+                    from: event.start,
+                    to: event.end,
+                    activity,
+                };
+                
+                self.database.create_activity(activity).await?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn detect_sleeps(&self) -> anyhow::Result<()> {
         'a: loop {
             let last_sleep = self.get_latest_sleep().await?;
@@ -93,14 +135,13 @@ impl OpenWhoop {
             let options = SearchHistory {
                 from: last_sleep.map(|s| s.end),
                 limit: Some(86400 * 2),
+                ..Default::default()
             };
 
             let mut history = self.database.search_history(options).await?;
             let mut periods = ActivityPeriod::detect(history.as_mut_slice());
 
             while let Some(mut sleep) = ActivityPeriod::find_sleep(&mut periods) {
-                dbg!(sleep);
-
                 if let Some(last_sleep) = last_sleep {
                     let diff = sleep.start - last_sleep.end;
 
@@ -109,7 +150,8 @@ impl OpenWhoop {
                             .database
                             .search_history(SearchHistory {
                                 from: Some(last_sleep.start),
-                                limit: Some((sleep.end - last_sleep.start).num_seconds() as u64),
+                                to: Some(sleep.end),
+                                ..Default::default()
                             })
                             .await?;
 
@@ -121,10 +163,17 @@ impl OpenWhoop {
 
                         if this_sleep_id == last_sleep_id {
                             if sleep.duration < last_sleep.duration() {
-                                // This is an nap create logic for it
+                                let nap = activities::ActivityPeriod {
+                                    period_id: last_sleep.id,
+                                    from: sleep.start,
+                                    to: sleep.end,
+                                    activity: activities::ActivityType::Nap,
+                                };
+                                self.database.create_activity(nap).await?;
                                 continue;
                             } else {
                                 // this means that previous sleep was an nap
+                                todo!();
                             }
                         }
                     }

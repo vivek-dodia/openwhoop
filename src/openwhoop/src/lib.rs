@@ -10,4 +10,6 @@ pub use device::WhoopDevice;
 mod openwhoop;
 pub use openwhoop::OpenWhoop;
 
-pub mod algo;
+pub(crate) mod algo;
+
+pub mod types;

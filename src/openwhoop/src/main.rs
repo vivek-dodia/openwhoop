@@ -125,6 +125,7 @@ async fn main() -> anyhow::Result<()> {
         OpenWhoopCommand::DetectEvents => {
             let whoop = OpenWhoop::new(db_handler);
             whoop.detect_sleeps().await?;
+            whoop.detect_events().await?;
             Ok(())
         }
     }

@@ -3,7 +3,7 @@ use whoop::{Activity, ParsedHistoryReading};
 
 const ACTIVITY_CHANGE_THRESHOLD: Duration = Duration::minutes(15);
 const MIN_SLEEP_DURATION: Duration = Duration::minutes(60);
-pub const MAX_SLEEP_PAUSE: Duration = Duration::minutes(30);
+pub const MAX_SLEEP_PAUSE: Duration = Duration::minutes(60);
 
 #[derive(Clone, Copy, Debug)]
 pub struct ActivityPeriod {
@@ -34,6 +34,10 @@ impl ActivityPeriod {
                 duration: a.end - a.start,
             })
             .collect()
+    }
+
+    pub fn is_active(&self) -> bool {
+        matches!(self.activity, Activity::Active)
     }
 
     pub fn find_sleep(events: &mut Vec<ActivityPeriod>) -> Option<ActivityPeriod> {
@@ -116,7 +120,7 @@ impl ActivityPeriod {
                     });
                 }
             } else {
-                merged.push(current.clone());
+                merged.push(*current);
             }
 
             i += 1;

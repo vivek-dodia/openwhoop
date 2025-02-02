@@ -1,6 +1,9 @@
 use chrono::{NaiveDate, NaiveDateTime, TimeDelta};
 use db_entities::sleep_cycles;
+use sea_orm::{EntityTrait, QueryOrder};
 use whoop::ParsedHistoryReading;
+
+use crate::DatabaseHandler;
 
 use super::ActivityPeriod;
 
@@ -106,5 +109,17 @@ impl From<sleep_cycles::Model> for SleepCycle {
             max_hrv: value.max_hrv.try_into().unwrap(),
             avg_hrv: value.avg_hrv.try_into().unwrap(),
         }
+    }
+}
+
+impl DatabaseHandler {
+    pub async fn get_sleep_cycles(&self) -> anyhow::Result<Vec<SleepCycle>> {
+        Ok(sleep_cycles::Entity::find()
+            .order_by_asc(sleep_cycles::Column::Start)
+            .all(&self.db)
+            .await?
+            .into_iter()
+            .map(SleepCycle::from)
+            .collect())
     }
 }
