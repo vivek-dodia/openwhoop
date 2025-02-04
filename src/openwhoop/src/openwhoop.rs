@@ -7,6 +7,7 @@ use whoop::{
 
 use crate::{
     algo::{activity::MAX_SLEEP_PAUSE, ActivityPeriod, SleepCycle},
+    helpers::format_hm::FormatHM,
     types::activities,
     DatabaseHandler, SearchHistory,
 };
@@ -121,6 +122,13 @@ impl OpenWhoop {
                     activity,
                 };
 
+                let duration = activity.to - activity.from;
+                info!(
+                    "Detected activity period from: {} to: {}, duration: {}",
+                    activity.from,
+                    activity.to,
+                    duration.format_hm()
+                );
                 self.database.create_activity(activity).await?;
             }
         }
@@ -181,6 +189,12 @@ impl OpenWhoop {
 
                 let sleep_cycle = SleepCycle::from_event(sleep, &history);
 
+                info!(
+                    "Detected sleep from {} to {}, duration: {}",
+                    sleep.start,
+                    sleep.end,
+                    sleep.duration.format_hm()
+                );
                 self.database.create_sleep(sleep_cycle).await?;
                 continue 'a;
             }

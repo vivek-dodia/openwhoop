@@ -10,7 +10,7 @@ use btleplug::{
 };
 use clap::{Parser, Subcommand};
 use dotenv::dotenv;
-use openwhoop::{DatabaseHandler, OpenWhoop, WhoopDevice};
+use openwhoop::{algo::SleepConsistencyAnalyzer, DatabaseHandler, OpenWhoop, WhoopDevice};
 use tokio::time::sleep;
 use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
 
@@ -33,6 +33,7 @@ pub enum OpenWhoopCommand {
     },
     ReRun,
     DetectEvents,
+    SleepStats,
 }
 
 #[tokio::main]
@@ -43,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .filter_module("sqlx::query", log::LevelFilter::Off)
+        .filter_module("sea_orm_migration::migrator", log::LevelFilter::Off)
         .init();
 
     let cli = OpenWhoopCli::parse();
@@ -126,6 +128,14 @@ async fn main() -> anyhow::Result<()> {
             let whoop = OpenWhoop::new(db_handler);
             whoop.detect_sleeps().await?;
             whoop.detect_events().await?;
+            Ok(())
+        }
+        OpenWhoopCommand::SleepStats => {
+            let whoop = OpenWhoop::new(db_handler);
+            let sleep_records = whoop.database.get_sleep_cycles().await?;
+            let analyzer = SleepConsistencyAnalyzer::new(sleep_records);
+            let metrics = analyzer.calculate_consistency_metrics();
+            println!("{:#?}", metrics);
             Ok(())
         }
     }
