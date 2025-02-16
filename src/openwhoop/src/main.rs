@@ -10,7 +10,11 @@ use btleplug::{
 };
 use clap::{Parser, Subcommand};
 use dotenv::dotenv;
-use openwhoop::{algo::SleepConsistencyAnalyzer, DatabaseHandler, OpenWhoop, WhoopDevice};
+use openwhoop::{
+    algo::{ExerciseMetrics, SleepConsistencyAnalyzer},
+    types::activities::{ActivityType, SearchActivityPeriods},
+    DatabaseHandler, OpenWhoop, WhoopDevice,
+};
 use tokio::time::sleep;
 use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
 
@@ -26,14 +30,38 @@ pub struct OpenWhoopCli {
 
 #[derive(Subcommand)]
 pub enum OpenWhoopCommand {
+    ///
+    /// Scan for Whoop devices
+    ///
     Scan,
+    ///
+    /// Download history data from whoop devices
+    ///
     DownloadHistory {
         #[arg(long, env)]
         whoop_addr: BDAddr,
     },
+    ///
+    /// Reruns the packet processing on stored packets
+    /// This is used after new more of packets get handled
+    ///
     ReRun,
+    ///
+    /// Detects sleeps and exercises
+    ///
     DetectEvents,
+    ///
+    /// Print sleep statistics for all time and last week
+    ///
     SleepStats,
+    ///
+    /// Print activity statistics for all time and last week
+    ///
+    ExerciseStats,
+    ///
+    /// Calculate stress for historical data
+    ///
+    CalculateStress,
 }
 
 #[tokio::main]
@@ -133,9 +161,50 @@ async fn main() -> anyhow::Result<()> {
         OpenWhoopCommand::SleepStats => {
             let whoop = OpenWhoop::new(db_handler);
             let sleep_records = whoop.database.get_sleep_cycles().await?;
+            let mut last_week = sleep_records
+                .iter()
+                .rev()
+                .take(7)
+                .copied()
+                .collect::<Vec<_>>();
+
+            last_week.reverse();
             let analyzer = SleepConsistencyAnalyzer::new(sleep_records);
             let metrics = analyzer.calculate_consistency_metrics();
-            println!("{:#?}", metrics);
+            println!("All time: \n{}", metrics);
+            let analyzer = SleepConsistencyAnalyzer::new(last_week);
+            let metrics = analyzer.calculate_consistency_metrics();
+            println!("Week: \n{}", metrics);
+
+            Ok(())
+        }
+        OpenWhoopCommand::ExerciseStats => {
+            let whoop = OpenWhoop::new(db_handler);
+            let exercises = whoop
+                .database
+                .search_activities(
+                    SearchActivityPeriods::default().with_activity(ActivityType::Activity),
+                )
+                .await?;
+
+            let last_week = exercises
+                .iter()
+                .rev()
+                .take(7)
+                .copied()
+                .rev()
+                .collect::<Vec<_>>();
+
+            let metrics = ExerciseMetrics::new(exercises);
+            let last_week = ExerciseMetrics::new(last_week);
+
+            println!("All time: \n{}", metrics);
+            println!("Last week: \n{}", last_week);
+            Ok(())
+        }
+        OpenWhoopCommand::CalculateStress => {
+            let whoop = OpenWhoop::new(db_handler);
+            whoop.calculate_stress().await?;
             Ok(())
         }
     }

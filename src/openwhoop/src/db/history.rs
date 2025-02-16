@@ -47,7 +47,7 @@ impl DatabaseHandler {
             rr: model
                 .rr_intervals
                 .split(',')
-                .map(|rr| rr.parse().unwrap_or_default())
+                .filter_map(|rr| rr.parse().ok())
                 .collect(),
             activity: model.activity.map(Activity::from).unwrap(),
         }

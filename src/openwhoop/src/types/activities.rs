@@ -951,6 +951,15 @@ pub struct SearchActivityPeriods {
 }
 
 impl SearchActivityPeriods {
+    pub fn with_activity(self, activity: ActivityType) -> Self {
+        Self {
+            activity: Some(activity),
+            ..self
+        }
+    }
+}
+
+impl SearchActivityPeriods {
     fn query(self) -> Condition {
         Condition::all()
             .add_option(self.from.map(|from| activities::Column::Start.gt(from)))

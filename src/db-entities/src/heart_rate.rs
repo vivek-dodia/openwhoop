@@ -2,7 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "heart_rate")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -13,6 +13,8 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub rr_intervals: String,
     pub activity: Option<i64>,
+    #[sea_orm(column_type = "Double", nullable)]
+    pub stress: Option<f64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

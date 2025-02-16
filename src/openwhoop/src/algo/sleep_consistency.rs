@@ -1,8 +1,11 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use chrono::{NaiveTime, TimeDelta, Timelike};
 
-use crate::helpers::format_hm::FormatHM;
+use crate::helpers::{
+    format_hm::FormatHM,
+    time_math::{mean, mean_deltas, mean_time, round_float, std_dev_delta, std_time},
+};
 
 use super::SleepCycle;
 
@@ -126,63 +129,6 @@ impl SleepConsistencyAnalyzer {
     }
 }
 
-fn map_time(time: &NaiveTime) -> i64 {
-    let mut h = time.hour() as i64;
-    if h > 12 {
-        h -= 24;
-    }
-    let m = time.minute() as i64;
-    let s = time.second() as i64;
-    h * 3600 + m * 60 + s
-}
-
-fn std_time(times: &[NaiveTime], mean: &NaiveTime) -> NaiveTime {
-    let mean = map_time(mean);
-    let variance = times
-        .iter()
-        .map(map_time)
-        .map(|x| (x - mean).pow(2))
-        .sum::<i64>()
-        / times.len() as i64;
-
-    let variance = variance.isqrt();
-    let h = variance / 3600;
-    let m = (variance % 3600) / 60;
-    let s = variance % 60;
-
-    NaiveTime::from_hms_opt(h as u32, m as u32, s as u32).expect("Invalid time")
-}
-
-fn mean_time(times: &[NaiveTime]) -> NaiveTime {
-    let mean = times.iter().map(map_time).sum::<i64>() / times.len() as i64;
-    let h = mean / 3600;
-    let m = (mean % 3600) / 60;
-    let s = mean % 60;
-    NaiveTime::from_hms_opt(h as u32, m as u32, s as u32).expect("Invalid time")
-}
-
-fn mean_deltas(durations: &[TimeDelta]) -> TimeDelta {
-    durations.iter().sum::<TimeDelta>() / durations.len() as i32
-}
-
-fn mean(values: &[f64]) -> f64 {
-    values.iter().sum::<f64>() / values.len() as f64
-}
-
-fn std_dev_delta(durations: &[TimeDelta], mean: TimeDelta) -> TimeDelta {
-    let variance = durations
-        .iter()
-        .map(|x| (*x - mean).num_seconds().pow(2))
-        .sum::<i64>()
-        / durations.len() as i64;
-
-    TimeDelta::seconds(variance.isqrt())
-}
-
-fn round_float(v: f64) -> f64 {
-    (v * 100.0).round() / 100.0
-}
-
 impl<Value> Debug for DurationMetric<Value>
 where
     Value: FormatHM,
@@ -193,5 +139,33 @@ where
             .field("mean", &self.mean.format_hm())
             .field("cv", &self.cv)
             .finish()
+    }
+}
+
+impl<Value> Display for DurationMetric<Value>
+where
+    Value: FormatHM,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "STD: {}, Mean: {}, CV: {}",
+            self.std.format_hm(),
+            self.mean.format_hm(),
+            self.cv
+        ))
+    }
+}
+
+impl Display for SleepMetrics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "Duration: {}\nStart time: {}\nEnd time: {}\nMidpoint: {}\nScores:\n",
+            self.duration, self.start_time, self.end_time, self.midpoint,
+        ))?;
+        f.write_fmt(format_args!(
+            "\tDuration score: {}\n\tTiming score: {}\n\tOverall score: {}",
+            self.score.duration_score, self.score.timing_score, self.score.score,
+        ))?;
+        Ok(())
     }
 }

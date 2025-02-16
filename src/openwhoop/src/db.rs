@@ -62,6 +62,7 @@ impl DatabaseHandler {
             time: Set(time),
             rr_intervals: Set(rr_to_string(rr)),
             activity: Set(Some(activity)),
+            stress: NotSet,
         };
 
         let _model = db_entities::heart_rate::Entity::insert(packet)

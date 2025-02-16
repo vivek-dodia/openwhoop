@@ -1,4 +1,5 @@
 use btleplug::api::ValueNotification;
+use chrono::TimeDelta;
 use db_entities::packets;
 use whoop::{
     constants::{MetadataType, DATA_FROM_STRAP},
@@ -6,7 +7,7 @@ use whoop::{
 };
 
 use crate::{
-    algo::{activity::MAX_SLEEP_PAUSE, ActivityPeriod, SleepCycle},
+    algo::{activity::MAX_SLEEP_PAUSE, ActivityPeriod, SleepCycle, StressCalculator},
     helpers::format_hm::FormatHM,
     types::activities,
     DatabaseHandler, SearchHistory,
@@ -200,6 +201,33 @@ impl OpenWhoop {
             }
 
             break;
+        }
+
+        Ok(())
+    }
+
+    pub async fn calculate_stress(&self) -> anyhow::Result<()> {
+        loop {
+            let last_stress = self.database.last_stress_time().await?;
+            let options = SearchHistory {
+                from: last_stress
+                    .map(|t| t - TimeDelta::seconds(StressCalculator::MIN_READING_PERIOD as i64)),
+                to: None,
+                limit: Some(86400),
+            };
+
+            let history = self.database.search_history(options).await?;
+            if history.is_empty() || history.len() <= StressCalculator::MIN_READING_PERIOD {
+                break;
+            }
+
+            let stress_scores = history
+                .windows(StressCalculator::MIN_READING_PERIOD)
+                .filter_map(StressCalculator::calculate_stress);
+
+            for stress in stress_scores {
+                self.database.update_stress_on_reading(stress).await?;
+            }
         }
 
         Ok(())
