@@ -15,6 +15,19 @@ After you find your device copy its address to `.env` under `WHOOP_ADDR`, and yo
 cargo run -r -- download-history
 ```
 
+### Importing data to python
+
+If you want to import heart rate data into python you can use following code:
+```py
+import pandas as pd
+import os
+
+QUERY = "SELECT time, bpm from heart_rate"
+PREFIX = "sqlite:///" # This is prefix if you are working in same dir as `.env` if you are working in `notebooks/` change to `sqlite:///../`
+DATABASE_URL = os.getenv("DATABASE_URL").replace("sqlite://", PREFIX) 
+df = pd.read_sql(QUERY, DATABASE_URL)
+```
+
 
 ## TODO:
 
