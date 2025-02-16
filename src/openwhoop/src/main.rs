@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate log;
 
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
 use anyhow::anyhow;
 use btleplug::{
     api::{BDAddr, Central, Manager as _, Peripheral as _, ScanFilter},
     platform::{Adapter, Manager, Peripheral},
 };
+use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, TimeDelta, Utc};
 use clap::{Parser, Subcommand};
 use dotenv::dotenv;
 use openwhoop::{
@@ -62,6 +63,14 @@ pub enum OpenWhoopCommand {
     /// Calculate stress for historical data
     ///
     CalculateStress,
+    ///
+    /// Set alarm
+    ///
+    SetAlarm {
+        #[arg(long, env)]
+        whoop_addr: BDAddr,
+        alarm_time: AlarmTime,
+    },
 }
 
 #[tokio::main]
@@ -207,6 +216,21 @@ async fn main() -> anyhow::Result<()> {
             whoop.calculate_stress().await?;
             Ok(())
         }
+        OpenWhoopCommand::SetAlarm {
+            whoop_addr,
+            alarm_time,
+        } => {
+            let peripheral = scan_command(adapter, Some(whoop_addr)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, db_handler);
+            whoop.connect().await?;
+
+            let time = alarm_time.unix();
+            let packet = WhoopPacket::alarm_time(time.timestamp() as u32);
+            whoop.send_command(packet).await?;
+            let time = time.with_timezone(&Local);
+            println!("Alarm time set for: {}", time);
+            Ok(())
+        }
     }
 }
 
@@ -246,5 +270,75 @@ async fn scan_command(
         }
 
         sleep(Duration::from_secs(1)).await;
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum AlarmTime {
+    DateTime(NaiveDateTime),
+    Time(NaiveTime),
+    Minute,
+    Minute5,
+    Minute10,
+    Minute15,
+    Minute30,
+    Hour,
+}
+
+impl FromStr for AlarmTime {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(t) = s.parse() {
+            return Ok(Self::DateTime(t));
+        }
+
+        if let Ok(t) = s.parse() {
+            return Ok(Self::Time(t));
+        }
+
+        match s {
+            "minute" | "1min" | "min" => Ok(Self::Minute),
+            "5minute" | "5min" => Ok(Self::Minute5),
+            "10minute" | "10min" => Ok(Self::Minute10),
+            "15minute" | "15min" => Ok(Self::Minute15),
+            "30minute" | "30min" => Ok(Self::Minute30),
+            "hour" | "h" => Ok(Self::Hour),
+            _ => Err(anyhow!("Invalid alarm time")),
+        }
+    }
+}
+
+impl AlarmTime {
+    pub fn unix(self) -> DateTime<Utc> {
+        let mut now = Utc::now();
+        match self {
+            AlarmTime::DateTime(dt) => dt.and_utc(),
+            AlarmTime::Time(t) => {
+                let current_time = now.time();
+                if current_time > t {
+                    now += TimeDelta::days(1);
+                }
+
+                now.with_time(t).unwrap()
+            }
+            _ => {
+                let offset = self.offset();
+                now + offset
+            }
+        }
+    }
+
+    fn offset(self) -> TimeDelta {
+        match self {
+            AlarmTime::DateTime(_) => todo!(),
+            AlarmTime::Time(_) => todo!(),
+            AlarmTime::Minute => TimeDelta::minutes(1),
+            AlarmTime::Minute5 => TimeDelta::minutes(5),
+            AlarmTime::Minute10 => TimeDelta::minutes(10),
+            AlarmTime::Minute15 => TimeDelta::minutes(15),
+            AlarmTime::Minute30 => TimeDelta::minutes(30),
+            AlarmTime::Hour => TimeDelta::hours(1),
+        }
     }
 }

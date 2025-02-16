@@ -76,4 +76,16 @@ impl WhoopPacket {
             packet_data,
         )
     }
+
+    pub fn alarm_time(unix: u32) -> WhoopPacket {
+        let mut data = vec![0x01];
+        data.extend_from_slice(&unix.to_le_bytes());
+        data.append(&mut vec![0, 0, 0, 0]); // padding
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::SetAlarmTime.as_u8(),
+            data,
+        )
+    }
 }
