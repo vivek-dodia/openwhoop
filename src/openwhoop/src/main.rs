@@ -19,6 +19,12 @@ use openwhoop::{
 use tokio::time::sleep;
 use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
 
+#[cfg(target_os = "linux")]
+pub type DeviceId = BDAddr;
+
+#[cfg(target_os = "macos")]
+pub type DeviceId = String;
+
 #[derive(Parser)]
 pub struct OpenWhoopCli {
     #[arg(env, long)]
@@ -40,7 +46,7 @@ pub enum OpenWhoopCommand {
     ///
     DownloadHistory {
         #[arg(long, env)]
-        whoop_addr: BDAddr,
+        whoop: DeviceId,
     },
     ///
     /// Reruns the packet processing on stored packets
@@ -68,7 +74,7 @@ pub enum OpenWhoopCommand {
     ///
     SetAlarm {
         #[arg(long, env)]
-        whoop_addr: BDAddr,
+        whoop: DeviceId,
         alarm_time: AlarmTime,
     },
 }
@@ -116,8 +122,8 @@ async fn main() -> anyhow::Result<()> {
             scan_command(adapter, None).await?;
             Ok(())
         }
-        OpenWhoopCommand::DownloadHistory { whoop_addr } => {
-            let peripheral = scan_command(adapter, Some(whoop_addr)).await?;
+        OpenWhoopCommand::DownloadHistory { whoop } => {
+            let peripheral = scan_command(adapter, Some(whoop)).await?;
             let mut whoop = WhoopDevice::new(peripheral, db_handler);
 
             whoop.connect().await?;
@@ -217,10 +223,10 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         OpenWhoopCommand::SetAlarm {
-            whoop_addr,
+            whoop,
             alarm_time,
         } => {
-            let peripheral = scan_command(adapter, Some(whoop_addr)).await?;
+            let peripheral = scan_command(adapter, Some(whoop)).await?;
             let mut whoop = WhoopDevice::new(peripheral, db_handler);
             whoop.connect().await?;
 
@@ -234,10 +240,7 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn scan_command(
-    adapter: Adapter,
-    peripheral_addr: Option<BDAddr>,
-) -> anyhow::Result<Peripheral> {
+async fn scan_command(adapter: Adapter, device_id: Option<DeviceId>) -> anyhow::Result<Peripheral> {
     adapter
         .start_scan(ScanFilter {
             services: vec![WHOOP_SERVICE],
@@ -256,7 +259,7 @@ async fn scan_command(
                 continue;
             }
 
-            let Some(peripheral_addr) = peripheral_addr else {
+            let Some(device_id) = device_id.as_ref() else {
                 println!("Address: {}", properties.address);
                 println!("Name: {:?}", properties.local_name);
                 println!("RSSI: {:?}", properties.rssi);
@@ -264,8 +267,19 @@ async fn scan_command(
                 continue;
             };
 
-            if properties.address == peripheral_addr {
+            #[cfg(target_os = "linux")]
+            if properties.address == *device_id {
                 return Ok(peripheral);
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                let Some(name) = properties.local_name else {
+                    continue;
+                };
+                if name.starts_with(device_id) {
+                    return Ok(peripheral);
+                }
             }
         }
 
