@@ -28,7 +28,10 @@ pub fn std_time(times: &[NaiveTime], mean: &NaiveTime) -> NaiveTime {
 }
 
 pub fn mean_time(times: &[NaiveTime]) -> NaiveTime {
-    let mean = times.iter().map(map_time).sum::<i64>() / times.len() as i64;
+    let mut mean = times.iter().map(map_time).sum::<i64>() / times.len() as i64;
+    if mean < 0 {
+        mean += 86400;
+    }
     let h = mean / 3600;
     let m = (mean % 3600) / 60;
     let s = mean % 60;

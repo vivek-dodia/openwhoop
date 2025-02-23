@@ -47,12 +47,14 @@ impl OpenWhoop {
                 };
 
                 match data {
-                    WhoopData::HistoryReading(HistoryReading {
-                        unix,
-                        bpm,
-                        rr,
-                        activity,
-                    }) => {
+                    WhoopData::HistoryReading(hr) if hr.is_valid() => {
+                        let HistoryReading {
+                            unix,
+                            bpm,
+                            rr,
+                            activity,
+                        } = hr;
+
                         self.database
                             .create_reading(unix, bpm, rr, activity as i64)
                             .await?;
@@ -70,7 +72,7 @@ impl OpenWhoop {
                     }
                     WhoopData::RunAlarm { .. } => {}
                     WhoopData::Event { .. } => {}
-                    WhoopData::UnknownEvent { .. } => {}
+                    _ => {}
                 }
             }
             _ => {
@@ -181,8 +183,13 @@ impl OpenWhoop {
                                 self.database.create_activity(nap).await?;
                                 continue;
                             } else {
-                                // this means that previous sleep was an nap
-                                todo!();
+                                let nap = activities::ActivityPeriod {
+                                    period_id: last_sleep.id - TimeDelta::days(1),
+                                    from: last_sleep.start,
+                                    to: last_sleep.end,
+                                    activity: activities::ActivityType::Nap,
+                                };
+                                self.database.create_activity(nap).await?;
                             }
                         }
                     }

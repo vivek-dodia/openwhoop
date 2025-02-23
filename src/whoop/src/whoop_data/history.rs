@@ -26,6 +26,12 @@ pub enum Activity {
     Awake,
 }
 
+impl HistoryReading {
+    pub fn is_valid(&self) -> bool {
+        self.bpm > 0
+    }
+}
+
 impl From<i64> for Activity {
     fn from(value: i64) -> Self {
         match value {

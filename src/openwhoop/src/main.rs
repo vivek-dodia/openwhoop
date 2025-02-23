@@ -183,7 +183,7 @@ async fn main() -> anyhow::Result<()> {
             println!("All time: \n{}", metrics);
             let analyzer = SleepConsistencyAnalyzer::new(last_week);
             let metrics = analyzer.calculate_consistency_metrics();
-            println!("Week: \n{}", metrics);
+            println!("\nWeek: \n{}", metrics);
 
             Ok(())
         }
