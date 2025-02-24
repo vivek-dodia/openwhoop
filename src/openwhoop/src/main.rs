@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .filter_module("sqlx::query", log::LevelFilter::Off)
         .filter_module("sea_orm_migration::migrator", log::LevelFilter::Off)
+        .filter_module("bluez_async", log::LevelFilter::Off)
         .init();
 
     let cli = OpenWhoopCli::parse();
@@ -225,10 +226,22 @@ async fn main() -> anyhow::Result<()> {
             whoop.connect().await?;
 
             let time = alarm_time.unix();
+            let now = Utc::now();
+
+            if time < now {
+                error!(
+                    "Time {} is in past, current time: {}",
+                    time.format("%Y-%m-%d %H:%M:%S"),
+                    now.format("%Y-%m-%d %H:%M:%S")
+                );
+                return Ok(());
+            }
+
             let packet = WhoopPacket::alarm_time(time.timestamp() as u32);
             whoop.send_command(packet).await?;
             let time = time.with_timezone(&Local);
-            println!("Alarm time set for: {}", time);
+
+            println!("Alarm time set for: {}", time.format("%Y-%m-%d %H:%M:%S"));
             Ok(())
         }
     }
@@ -293,6 +306,14 @@ impl FromStr for AlarmTime {
             return Ok(Self::DateTime(t));
         }
 
+        if let Ok(t) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+            return Ok(Self::DateTime(t));
+        }
+
+        if let Ok(t) = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+            return Ok(Self::DateTime(t));
+        }
+
         if let Ok(t) = s.parse() {
             return Ok(Self::Time(t));
         }
@@ -312,15 +333,17 @@ impl FromStr for AlarmTime {
 impl AlarmTime {
     pub fn unix(self) -> DateTime<Utc> {
         let mut now = Utc::now();
+        let timezone_df = Local::now().offset().to_owned();
+
         match self {
-            AlarmTime::DateTime(dt) => dt.and_utc(),
+            AlarmTime::DateTime(dt) => dt.and_utc() - timezone_df,
             AlarmTime::Time(t) => {
                 let current_time = now.time();
                 if current_time > t {
                     now += TimeDelta::days(1);
                 }
 
-                now.with_time(t).unwrap()
+                now.with_time(t).unwrap() - timezone_df
             }
             _ => {
                 let offset = self.offset();
