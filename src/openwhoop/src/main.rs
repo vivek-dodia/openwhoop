@@ -29,6 +29,7 @@ pub type DeviceId = String;
 pub struct OpenWhoopCli {
     #[arg(env, long)]
     pub database_url: String,
+    #[cfg(target_os = "linux")]
     #[arg(env, long)]
     pub ble_interface: Option<String>,
     #[clap(subcommand)]
@@ -91,31 +92,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = OpenWhoopCli::parse();
+
+    let adapter = cli.create_ble_adapter().await?;
     let db_handler = DatabaseHandler::new(cli.database_url).await;
-
-    let manager = Manager::new().await?;
-    let adapter = match cli.ble_interface {
-        Some(interface) => {
-            let adapters = manager.adapters().await?;
-            let mut c_adapter = Err(anyhow!("Adapter: `{}` not found", interface));
-            for adapter in adapters {
-                let name = adapter.adapter_info().await?;
-                if name.starts_with(&interface) {
-                    c_adapter = Ok(adapter);
-                    break;
-                }
-            }
-
-            c_adapter?
-        }
-        None => {
-            let adapters = manager.adapters().await?;
-            adapters
-                .into_iter()
-                .next()
-                .ok_or(anyhow!("No BLE adapters found"))?
-        }
-    };
 
     match cli.subcommand {
         OpenWhoopCommand::Scan => {
@@ -222,10 +201,7 @@ async fn main() -> anyhow::Result<()> {
             whoop.calculate_stress().await?;
             Ok(())
         }
-        OpenWhoopCommand::SetAlarm {
-            whoop,
-            alarm_time,
-        } => {
+        OpenWhoopCommand::SetAlarm { whoop, alarm_time } => {
             let peripheral = scan_command(adapter, Some(whoop)).await?;
             let mut whoop = WhoopDevice::new(peripheral, db_handler);
             whoop.connect().await?;
@@ -277,7 +253,7 @@ async fn scan_command(adapter: Adapter, device_id: Option<DeviceId>) -> anyhow::
                 let Some(name) = properties.local_name else {
                     continue;
                 };
-                if name.starts_with(device_id) {
+                if sanitize_name(&name).starts_with(device_id) {
                     return Ok(peripheral);
                 }
             }
@@ -354,5 +330,51 @@ impl AlarmTime {
             AlarmTime::Minute30 => TimeDelta::minutes(30),
             AlarmTime::Hour => TimeDelta::hours(1),
         }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn sanitize_name(name: &str) -> String {
+    name.chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+impl OpenWhoopCli {
+    async fn create_ble_adapter(&self) -> anyhow::Result<Adapter> {
+        let manager = Manager::new().await?;
+
+        #[cfg(target_os = "linux")]
+        match self.ble_interface.as_ref() {
+            Some(interface) => Self::adapter_from_name(&manager, interface).await,
+            None => Self::default_adapter(&manager).await,
+        }
+
+        #[cfg(target_os = "macos")]
+        Self::default_adapter(&manager).await
+    }
+
+    async fn adapter_from_name(manager: &Manager, interface: &str) -> anyhow::Result<Adapter> {
+        let adapters = manager.adapters().await?;
+        let mut c_adapter = Err(anyhow!("Adapter: `{}` not found", interface));
+        for adapter in adapters {
+            let name = adapter.adapter_info().await?;
+            if name.starts_with(interface) {
+                c_adapter = Ok(adapter);
+                break;
+            }
+        }
+
+        c_adapter
+    }
+
+    async fn default_adapter(manager: &Manager) -> anyhow::Result<Adapter> {
+        let adapters = manager.adapters().await?;
+        adapters
+            .into_iter()
+            .next()
+            .ok_or(anyhow!("No BLE adapters found"))
     }
 }
