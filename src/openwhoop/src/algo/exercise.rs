@@ -10,7 +10,7 @@ use crate::{
     types::activities::ActivityPeriod,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExerciseMetrics {
     pub total_duration: TimeDelta,
     pub count: u64,
@@ -20,6 +20,10 @@ pub struct ExerciseMetrics {
 
 impl ExerciseMetrics {
     pub fn new(exercises: Vec<ActivityPeriod>) -> Self {
+        if exercises.is_empty() {
+            return Self::default();
+        }
+
         let count = exercises.len().try_into().unwrap_or(u64::MAX);
         let durations = exercises
             .into_iter()
@@ -46,5 +50,21 @@ impl Display for ExerciseMetrics {
             self.mean_duration.format_hm(),
             self.duration_std.format_hm()
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::TimeDelta;
+
+    use super::ExerciseMetrics;
+
+    #[test]
+    fn test_metrics_empty() {
+        let metrics = ExerciseMetrics::new(Vec::new());
+        assert_eq!(metrics.count, 0);
+        assert_eq!(metrics.duration_std, TimeDelta::default());
+        assert_eq!(metrics.mean_duration, TimeDelta::default());
+        assert_eq!(metrics.total_duration, TimeDelta::default());
     }
 }
