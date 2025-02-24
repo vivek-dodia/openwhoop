@@ -170,6 +170,12 @@ async fn main() -> anyhow::Result<()> {
         OpenWhoopCommand::SleepStats => {
             let whoop = OpenWhoop::new(db_handler);
             let sleep_records = whoop.database.get_sleep_cycles().await?;
+
+            if sleep_records.is_empty() {
+                println!("No sleep records found, exiting now");
+                return Ok(());
+            }
+
             let mut last_week = sleep_records
                 .iter()
                 .rev()
@@ -195,6 +201,11 @@ async fn main() -> anyhow::Result<()> {
                     SearchActivityPeriods::default().with_activity(ActivityType::Activity),
                 )
                 .await?;
+
+            if exercises.is_empty() {
+                println!("No activities found, exiting now");
+                return Ok(());
+            };
 
             let last_week = exercises
                 .iter()

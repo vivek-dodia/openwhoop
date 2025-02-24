@@ -11,14 +11,13 @@ use super::SleepCycle;
 
 #[derive(Default)]
 pub struct SleepConsistencyAnalyzer {
-    sleep_records: Vec<SleepCycle>,
     durations: Vec<TimeDelta>,
     start_times: Vec<NaiveTime>,
     end_times: Vec<NaiveTime>,
     midpoints: Vec<NaiveTime>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct SleepMetrics {
     pub duration: DurationMetric<TimeDelta>,
     pub start_time: DurationMetric<NaiveTime>,
@@ -27,14 +26,14 @@ pub struct SleepMetrics {
     pub score: ConsistencyScore,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct ConsistencyScore {
     pub score: f64,
     pub duration_score: f64,
     pub timing_score: f64,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct DurationMetric<Value> {
     pub std: Value,
     pub mean: Value,
@@ -43,16 +42,13 @@ pub struct DurationMetric<Value> {
 
 impl SleepConsistencyAnalyzer {
     pub fn new(sleep_records: Vec<SleepCycle>) -> Self {
-        let mut analyzer = SleepConsistencyAnalyzer {
-            sleep_records,
-            ..Default::default()
-        };
-        analyzer.process_records();
+        let mut analyzer = SleepConsistencyAnalyzer::default();
+        analyzer.process_records(sleep_records);
         analyzer
     }
 
-    fn process_records(&mut self) {
-        for &cycle in &self.sleep_records {
+    fn process_records(&mut self, sleep_records: Vec<SleepCycle>) {
+        for cycle in &sleep_records {
             let start = cycle.start;
             let end = cycle.end;
 
@@ -64,6 +60,10 @@ impl SleepConsistencyAnalyzer {
     }
 
     pub fn calculate_consistency_metrics(&self) -> SleepMetrics {
+        if self.durations.is_empty() {
+            return SleepMetrics::default();
+        }
+
         // Calculate statistics for duration
         let duration = self.duration_metric();
 
@@ -167,5 +167,24 @@ impl Display for SleepMetrics {
             self.score.duration_score, self.score.timing_score, self.score.score,
         ))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::algo::sleep_consistency::{ConsistencyScore, DurationMetric};
+
+    use super::SleepConsistencyAnalyzer;
+
+    #[test]
+    fn test_empty_sleep() {
+        let anal = SleepConsistencyAnalyzer::new(Vec::new());
+        let metrics = anal.calculate_consistency_metrics();
+
+        assert_eq!(metrics.duration, DurationMetric::default());
+        assert_eq!(metrics.end_time, DurationMetric::default());
+        assert_eq!(metrics.midpoint, DurationMetric::default());
+        assert_eq!(metrics.start_time, DurationMetric::default());
+        assert_eq!(metrics.score, ConsistencyScore::default());
     }
 }
