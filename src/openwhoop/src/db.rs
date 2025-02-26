@@ -2,14 +2,13 @@ use chrono::{Local, NaiveDateTime, TimeZone};
 use db_entities::{packets, sleep_cycles};
 use migration::{Migrator, MigratorTrait, OnConflict};
 use sea_orm::{
-    prelude::Expr, ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, Condition, Database,
-    DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, Database, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set,
 };
 use uuid::Uuid;
 
 mod history;
 pub use history::SearchHistory;
-use whoop::constants::DATA_FROM_STRAP;
 
 use crate::algo::SleepCycle;
 
@@ -82,12 +81,6 @@ impl DatabaseHandler {
     pub async fn get_packets(&self, id: i32) -> anyhow::Result<Vec<packets::Model>> {
         let stream = packets::Entity::find()
             .filter(packets::Column::Id.gt(id))
-            .filter(packets::Column::Uuid.eq(DATA_FROM_STRAP))
-            .filter(
-                Condition::any()
-                    .add(Expr::cust("LOWER(HEX(bytes))").like("aa6400a1%"))
-                    .add(Expr::cust("LOWER(HEX(bytes))").like("aa5c00f0%")),
-            )
             .order_by_asc(packets::Column::Id)
             .limit(10_000)
             .all(&self.db)
@@ -118,7 +111,7 @@ impl DatabaseHandler {
             avg_bpm: Set(sleep.avg_bpm.into()),
             min_hrv: Set(sleep.min_hrv.into()),
             max_hrv: Set(sleep.max_hrv.into()),
-            avg_hrv: Set(sleep.max_hrv.into()),
+            avg_hrv: Set(sleep.avg_hrv.into()),
         };
 
         let _r = sleep_cycles::Entity::insert(model)

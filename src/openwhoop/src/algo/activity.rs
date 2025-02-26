@@ -94,6 +94,7 @@ impl ActivityPeriod {
                 if i > 0
                     && i + 1 < activities.len()
                     && activities[i - 1].activity == activities[i + 1].activity
+                    && !merged.is_empty()
                 {
                     // Merge with both previous and next activity
                     let prev: TempActivity = merged.pop().unwrap();

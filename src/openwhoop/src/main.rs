@@ -10,6 +10,7 @@ use btleplug::{
 };
 use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, TimeDelta, Utc};
 use clap::{Parser, Subcommand};
+use db_entities::packets;
 use dotenv::dotenv;
 use openwhoop::{
     algo::{ExerciseMetrics, SleepConsistencyAnalyzer},
@@ -71,6 +72,10 @@ pub enum OpenWhoopCommand {
         whoop_addr: BDAddr,
         alarm_time: AlarmTime,
     },
+    ///
+    /// Copy packets from one database into another
+    ///
+    Merge { from: String },
 }
 
 #[tokio::main]
@@ -253,6 +258,31 @@ async fn main() -> anyhow::Result<()> {
             let time = time.with_timezone(&Local);
 
             println!("Alarm time set for: {}", time.format("%Y-%m-%d %H:%M:%S"));
+            Ok(())
+        }
+        OpenWhoopCommand::Merge { from } => {
+            let from_db = DatabaseHandler::new(from).await;
+
+            let mut id = 0;
+            loop {
+                let packets = from_db.get_packets(id).await?;
+                if packets.is_empty() {
+                    break;
+                }
+
+                for packets::Model {
+                    uuid,
+                    bytes,
+                    id: c_id,
+                } in packets
+                {
+                    id = c_id;
+                    db_handler.create_packet(uuid, bytes).await?;
+                }
+
+                println!("{}", id);
+            }
+
             Ok(())
         }
     }

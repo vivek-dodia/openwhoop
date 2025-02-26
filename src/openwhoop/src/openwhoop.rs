@@ -139,6 +139,7 @@ impl OpenWhoop {
         Ok(())
     }
 
+    /// TODO: add handling for data splits
     pub async fn detect_sleeps(&self) -> anyhow::Result<()> {
         'a: loop {
             let last_sleep = self.get_latest_sleep().await?;
