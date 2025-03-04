@@ -10,10 +10,18 @@ cp .env.example .env
 cargo run -r -- scan
 ```
 
-After you find your device copy its address to `.env` under `WHOOP_ADDR`, and you can download data from your whoop by running:
+After you find your device:
+
+On linux copy its address to `.env` under `WHOOP`, 
+
+On macos copy its name to `.env` under `WHOOP`,  
+
+After that you can download data from your whoop by running:
 ```sh
 cargo run -r -- download-history
 ```
+
+If you are using macos you should 
 
 ### Importing data to python
 
