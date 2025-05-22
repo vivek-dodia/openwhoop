@@ -1,11 +1,11 @@
 [package]
-name = "migration"
+name = "openwhoop-migration"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [lib]
-name = "migration"
+name = "openwhoop_migration"
 path = "src/lib.rs"
 
 [dependencies]

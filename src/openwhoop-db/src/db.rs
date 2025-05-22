@@ -1,16 +1,13 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
 use db_entities::{packets, sleep_cycles};
-use migration::{Migrator, MigratorTrait, OnConflict};
+use openwhoop_migration::{Migrator, MigratorTrait, OnConflict};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, Database, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, ConnectOptions, Database,
+    DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Set,
 };
 use uuid::Uuid;
 
-mod history;
-pub use history::SearchHistory;
-
-use crate::algo::SleepCycle;
+use openwhoop_algos::SleepCycle;
 
 #[derive(Clone)]
 pub struct DatabaseHandler {
@@ -18,7 +15,10 @@ pub struct DatabaseHandler {
 }
 
 impl DatabaseHandler {
-    pub async fn new(path: String) -> Self {
+    pub async fn new<C>(path: C) -> Self
+    where
+        C: Into<ConnectOptions>,
+    {
         let db = Database::connect(path)
             .await
             .expect("Unable to connect to db");
@@ -53,7 +53,6 @@ impl DatabaseHandler {
         activity: i64,
     ) -> anyhow::Result<()> {
         let time = timestamp_to_local(unix);
-        info!(target: "HistoryReading", "time: {}, bpm: {}", time, bpm);
 
         let packet = db_entities::heart_rate::ActiveModel {
             id: NotSet,
@@ -112,6 +111,7 @@ impl DatabaseHandler {
             min_hrv: Set(sleep.min_hrv.into()),
             max_hrv: Set(sleep.max_hrv.into()),
             avg_hrv: Set(sleep.avg_hrv.into()),
+            score: Set(sleep.score.into()),
         };
 
         let _r = sleep_cycles::Entity::insert(model)

@@ -4,6 +4,7 @@ use btleplug::{
     api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
     platform::Peripheral,
 };
+use db_entities::packets::Model;
 use futures::StreamExt;
 use tokio::time::sleep;
 use uuid::Uuid;
@@ -14,18 +15,20 @@ use whoop::{
     WhoopPacket,
 };
 
-use crate::{openwhoop::OpenWhoop, DatabaseHandler};
+use crate::{db::DatabaseHandler, openwhoop::OpenWhoop};
 
 pub struct WhoopDevice {
     peripheral: Peripheral,
     whoop: OpenWhoop,
+    debug_packets: bool,
 }
 
 impl WhoopDevice {
-    pub fn new(peripheral: Peripheral, db: DatabaseHandler) -> Self {
+    pub fn new(peripheral: Peripheral, db: DatabaseHandler, debug_packets: bool) -> Self {
         Self {
             peripheral,
             whoop: OpenWhoop::new(db),
+            debug_packets,
         }
     }
 
@@ -84,21 +87,37 @@ impl WhoopDevice {
 
     pub async fn sync_history(&mut self) -> anyhow::Result<()> {
         let mut notifications = self.peripheral.notifications().await?;
+        // self.send_command(WhoopPacket::toggle_r7_data_collection())
+        //     .await?;
         self.send_command(WhoopPacket::history_start()).await?;
 
-        loop {
+        'a: loop {
             let notification = notifications.next();
-            let sleep = sleep(Duration::from_secs(10));
+            let sleep_ = sleep(Duration::from_secs(10));
 
             tokio::select! {
-                _ = sleep => {
-                    if self.on_sleep().await?{
+                _ = sleep_ => {
+                    if self.on_sleep().await? {
                         error!("Whoop disconnected");
+                        for _ in 0..5{
+                            if self.connect().await.is_ok() {
+                                self.initialize().await?;
+                                self.send_command(WhoopPacket::history_start()).await?;
+                                continue 'a;
+                            }
+
+                            sleep(Duration::from_secs(10)).await;
+                        }
+
                         break;
                     }
                 },
                 Some(notification) = notification => {
-                    let packet = self.whoop.store_packet(notification).await?;
+                    let packet = match self.debug_packets {
+                        true => self.whoop.store_packet(notification).await?,
+                        false => Model { id: 0, uuid: notification.uuid, bytes: notification.value },
+                    };
+
                     if let Some(packet) = self.whoop.handle_packet(packet).await?{
                         self.send_command(packet).await?;
                     }

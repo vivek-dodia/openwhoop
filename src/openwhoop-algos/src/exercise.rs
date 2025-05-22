@@ -2,13 +2,11 @@ use std::fmt::Display;
 
 use chrono::TimeDelta;
 
-use crate::{
-    helpers::{
-        format_hm::FormatHM,
-        time_math::{mean_deltas, std_dev_delta},
-    },
-    types::activities::ActivityPeriod,
+use crate::helpers::{
+    format_hm::FormatHM,
+    time_math::{mean_deltas, std_dev_delta},
 };
+use openwhoop_types::activities::ActivityPeriod;
 
 #[derive(Debug, Default)]
 pub struct ExerciseMetrics {

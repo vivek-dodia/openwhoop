@@ -14,8 +14,9 @@ use db_entities::packets;
 use dotenv::dotenv;
 use openwhoop::{
     algo::{ExerciseMetrics, SleepConsistencyAnalyzer},
+    db::DatabaseHandler,
     types::activities::{ActivityType, SearchActivityPeriods},
-    DatabaseHandler, OpenWhoop, WhoopDevice,
+    OpenWhoop, WhoopDevice,
 };
 use tokio::time::sleep;
 use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
@@ -28,6 +29,8 @@ pub type DeviceId = String;
 
 #[derive(Parser)]
 pub struct OpenWhoopCli {
+    #[arg(env, long)]
+    pub debug_packets: bool,
     #[arg(env, long)]
     pub database_url: String,
     #[cfg(target_os = "linux")]
@@ -109,12 +112,14 @@ async fn main() -> anyhow::Result<()> {
         }
         OpenWhoopCommand::DownloadHistory { whoop } => {
             let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler);
+            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
 
             whoop.connect().await?;
             whoop.initialize().await?;
 
             let result = whoop.sync_history().await;
+
+            info!("Exiting...");
             if let Err(e) = result {
                 error!("{}", e);
             }
@@ -220,7 +225,7 @@ async fn main() -> anyhow::Result<()> {
         }
         OpenWhoopCommand::SetAlarm { whoop, alarm_time } => {
             let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler);
+            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
             whoop.connect().await?;
 
             let time = alarm_time.unix();

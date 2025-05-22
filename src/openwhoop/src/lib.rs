@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate log;
 
-mod db;
-pub use db::{DatabaseHandler, SearchHistory};
+pub mod db {
+    pub use openwhoop_db::*;
+}
 
 mod device;
 pub use device::WhoopDevice;
@@ -10,8 +11,10 @@ pub use device::WhoopDevice;
 mod openwhoop;
 pub use openwhoop::OpenWhoop;
 
-pub mod algo;
+pub mod algo {
+    pub use openwhoop_algos::*;
+}
 
-pub mod types;
-
-pub(crate) mod helpers;
+pub mod types {
+    pub use openwhoop_types::*;
+}

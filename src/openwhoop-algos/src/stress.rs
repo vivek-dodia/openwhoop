@@ -1,14 +1,6 @@
-use std::collections::BTreeMap;
-
 use chrono::NaiveDateTime;
-use db_entities::heart_rate;
-use sea_orm::{
-    ActiveValue::NotSet, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
-    SelectColumns, Set, Unchanged,
-};
+use std::collections::BTreeMap;
 use whoop::ParsedHistoryReading;
-
-use crate::DatabaseHandler;
 
 pub struct StressCalculator;
 
@@ -87,43 +79,9 @@ impl StressCalcParams {
     }
 }
 
-impl DatabaseHandler {
-    pub(crate) async fn last_stress_time(&self) -> anyhow::Result<Option<NaiveDateTime>> {
-        let reading = heart_rate::Entity::find()
-            .filter(heart_rate::Column::Stress.is_not_null())
-            .order_by_desc(heart_rate::Column::Time)
-            .select_only()
-            .select_column(heart_rate::Column::Time)
-            .into_tuple()
-            .one(&self.db)
-            .await?;
-
-        Ok(reading)
-    }
-
-    pub(crate) async fn update_stress_on_reading(&self, stress: StressScore) -> anyhow::Result<()> {
-        let model = heart_rate::ActiveModel {
-            id: NotSet,
-            bpm: NotSet,
-            time: Unchanged(stress.time),
-            rr_intervals: NotSet,
-            activity: NotSet,
-            stress: Set(Some(stress.score)),
-        };
-
-        heart_rate::Entity::update_many()
-            .filter(heart_rate::Column::Time.eq(stress.time))
-            .set(model)
-            .exec(&self.db)
-            .await?;
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::algo::stress::StressCalcParams;
+    use crate::stress::StressCalcParams;
 
     #[test]
     fn test_stress_calc() {

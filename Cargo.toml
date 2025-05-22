@@ -4,4 +4,8 @@ members = [
     "src/sea-migrations",
     "src/db-entities",
     "src/openwhoop",
+    "src/openwhoop-algos",
+    "src/openwhoop-types",
+    "src/openwhoop-db",
 ]
+resolver = "3"

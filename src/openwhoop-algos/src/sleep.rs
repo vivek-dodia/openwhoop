@@ -1,13 +1,9 @@
 use chrono::{NaiveDate, NaiveDateTime, TimeDelta};
-use db_entities::sleep_cycles;
-use sea_orm::{EntityTrait, QueryOrder};
 use whoop::ParsedHistoryReading;
-
-use crate::DatabaseHandler;
 
 use super::ActivityPeriod;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SleepCycle {
     pub id: NaiveDate,
     pub start: NaiveDateTime,
@@ -18,6 +14,7 @@ pub struct SleepCycle {
     pub min_hrv: u16,
     pub max_hrv: u16,
     pub avg_hrv: u16,
+    pub score: f64,
 }
 
 impl SleepCycle {
@@ -57,6 +54,7 @@ impl SleepCycle {
             min_hrv,
             max_hrv,
             avg_hrv,
+            score: Self::sleep_score(event.start, event.end),
         }
     }
 
@@ -94,32 +92,13 @@ impl SleepCycle {
         let rr_count = rr_diff.len() as f64;
         Some((rr_diff.into_iter().sum::<f64>() / rr_count).sqrt() as u64)
     }
-}
 
-impl From<sleep_cycles::Model> for SleepCycle {
-    fn from(value: sleep_cycles::Model) -> Self {
-        Self {
-            id: value.sleep_id,
-            start: value.start,
-            end: value.end,
-            min_bpm: value.min_bpm.try_into().unwrap(),
-            max_bpm: value.max_bpm.try_into().unwrap(),
-            avg_bpm: value.avg_bpm.try_into().unwrap(),
-            min_hrv: value.min_hrv.try_into().unwrap(),
-            max_hrv: value.max_hrv.try_into().unwrap(),
-            avg_hrv: value.avg_hrv.try_into().unwrap(),
-        }
-    }
-}
+    pub fn sleep_score(start: NaiveDateTime, end: NaiveDateTime) -> f64 {
+        let duration = (end - start).num_seconds();
+        const IDEAL_DURATION: i64 = 60 * 60 * 8;
 
-impl DatabaseHandler {
-    pub async fn get_sleep_cycles(&self) -> anyhow::Result<Vec<SleepCycle>> {
-        Ok(sleep_cycles::Entity::find()
-            .order_by_asc(sleep_cycles::Column::Start)
-            .all(&self.db)
-            .await?
-            .into_iter()
-            .map(SleepCycle::from)
-            .collect())
+        let score = (duration / IDEAL_DURATION) as f64;
+
+        (score * 100.0).clamp(0.0, 100.0)
     }
 }

@@ -129,6 +129,8 @@ impl WhoopData {
 
         let activity = packet.read_u32_le()?;
 
+        dbg!(hex::encode(packet));
+
         Ok(Self::HistoryReading(HistoryReading {
             unix,
             bpm,
@@ -148,6 +150,20 @@ mod tests {
 
     #[test]
     fn parse_historical_packet() {
+        let data = hex::decode("aa5c00f02f0c050f0008029e7e2868906380542c01400000000000000000000021436dff904d893dec19fb3e5ccf9b3d0a03773f00000000ec19fb3e5ccf9b3d0a03773fe0015702eb02590239019004010c020c310000000000000115f49cd0").expect("Invalid hex data");
+        let packet = WhoopPacket::from_data(data).expect("Invalid packet data");
+        let data = WhoopData::from_packet(packet).expect("Invalid packet");
+
+        assert_eq!(
+            data,
+            WhoopData::HistoryReading(HistoryReading {
+                unix: 1747484318,
+                bpm: 64,
+                rr: vec![],
+                activity: 1833115904
+            })
+        );
+
         let data = hex::decode("aa5c00f02f0c053f940900da106966280080545401360195040000000000000000a34cff0050bf3b144efb3da4a4463f299c0dbf00004c42144efb3da4a4463f299c0dbff40155023b03530255016004010c020c2000000000000002e8c17c8d").expect("Invalid hex data");
         let packet = WhoopPacket::from_data(data).expect("Invalid packet data");
         let data = WhoopData::from_packet(packet).expect("Invalid packet");

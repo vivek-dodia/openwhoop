@@ -88,4 +88,46 @@ impl WhoopPacket {
             data,
         )
     }
+
+    pub fn toggle_imu_mode(value: bool) -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ToggleImuMode.as_u8(),
+            vec![value as u8],
+        )
+    }
+
+    pub fn toggle_imu_mode_historical(value: bool) -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ToggleImuModeHistorical.as_u8(),
+            vec![value as u8],
+        )
+    }
+
+    pub fn toggle_r7_data_collection() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ToggleR7DataCollection.as_u8(),
+            vec![41, 1],
+        )
+    }
+}
+
+#[test]
+fn view_bytes() {
+    let packet = WhoopPacket::history_start();
+    let bytes = packet.framed_packet();
+    println!("SendHistoricalData");
+    println!("{:?}", bytes);
+    println!("{}", hex::encode(bytes));
+
+    // let packet = WhoopPacket::hello_harvard();
+    // let bytes = packet.framed_packet();
+    // println!("Hello Harvard");
+    // println!("{:?}", bytes);
+    // println!("{}", hex::encode(bytes));
 }

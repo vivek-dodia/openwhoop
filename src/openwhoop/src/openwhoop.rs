@@ -1,16 +1,17 @@
 use btleplug::api::ValueNotification;
-use chrono::TimeDelta;
+use chrono::{DateTime, Local, TimeDelta};
 use db_entities::packets;
+use openwhoop_db::{DatabaseHandler, SearchHistory};
 use whoop::{
     constants::{MetadataType, DATA_FROM_STRAP},
     Activity, HistoryReading, WhoopData, WhoopPacket,
 };
 
 use crate::{
-    algo::{activity::MAX_SLEEP_PAUSE, ActivityPeriod, SleepCycle, StressCalculator},
-    helpers::format_hm::FormatHM,
+    algo::{
+        helpers::format_hm::FormatHM, ActivityPeriod, SleepCycle, StressCalculator, MAX_SLEEP_PAUSE,
+    },
     types::activities,
-    DatabaseHandler, SearchHistory,
 };
 
 pub struct OpenWhoop {
@@ -55,6 +56,7 @@ impl OpenWhoop {
                             activity,
                         } = hr;
 
+                        info!(target: "HistoryReading", "time: {}, bpm: {}", DateTime::from_timestamp(unix as i64, 0).unwrap().with_timezone(&Local).format("%Y-%m-%d %H:%M:%S"), bpm);
                         self.database
                             .create_reading(unix, bpm, rr, activity as i64)
                             .await?;
@@ -84,11 +86,7 @@ impl OpenWhoop {
     }
 
     pub async fn get_latest_sleep(&self) -> anyhow::Result<Option<SleepCycle>> {
-        Ok(self
-            .database
-            .get_latest_sleep()
-            .await?
-            .map(SleepCycle::from))
+        Ok(self.database.get_latest_sleep().await?.map(map_sleep_cycle))
     }
 
     /// TODO: refactor: this will detect events until last sleep, so if function [`OpenWhoop::detect_sleeps`] has not been called for a week, this will not detect events in last week
@@ -239,5 +237,22 @@ impl OpenWhoop {
         }
 
         Ok(())
+    }
+}
+
+fn map_sleep_cycle(sleep: db_entities::sleep_cycles::Model) -> SleepCycle {
+    SleepCycle {
+        id: sleep.end.date(),
+        start: sleep.start,
+        end: sleep.end,
+        min_bpm: sleep.min_bpm.try_into().unwrap(),
+        max_bpm: sleep.max_bpm.try_into().unwrap(),
+        avg_bpm: sleep.avg_bpm.try_into().unwrap(),
+        min_hrv: sleep.min_hrv.try_into().unwrap(),
+        max_hrv: sleep.max_hrv.try_into().unwrap(),
+        avg_hrv: sleep.avg_hrv.try_into().unwrap(),
+        score: sleep
+            .score
+            .unwrap_or_else(|| SleepCycle::sleep_score(sleep.start, sleep.end)),
     }
 }

@@ -1,15 +1,6 @@
-use std::{fmt::Display, str::FromStr};
-
 use chrono::{NaiveDate, NaiveDateTime};
-use db_entities::activities::{self, Model};
-use migration::OnConflict;
-use sea_orm::{
-    ActiveValue::NotSet, ColumnTrait, Condition, EntityTrait as _, QueryFilter as _, QueryOrder,
-    Set,
-};
 use serde::{Deserialize, Serialize};
-
-use crate::DatabaseHandler;
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ActivityPeriod {
@@ -330,153 +321,445 @@ pub enum ActivityType {
 
 impl ActivityType {
     pub fn icon_url(&self) -> &'static str {
-        match self{
-            ActivityType::Activity => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/unknown.png",
-            ActivityType::Running => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/running.png",
-            ActivityType::Cycling => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cycling.png",
-            ActivityType::Baseball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/baseball.png",
-            ActivityType::Basketball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/basketball.png",
-            ActivityType::Rowing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/crew.png",
-            ActivityType::Fencing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/fencing.png",
-            ActivityType::FieldHockey => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/field_hockey.png",
-            ActivityType::Football => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/football.png",
-            ActivityType::Golf => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/golf.png",
-            ActivityType::IceHockey => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_hockey.png",
-            ActivityType::Lacrosse => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/lacrosse.png",
-            ActivityType::Rugby => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rugby.png",
-            ActivityType::Sailing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sailing.png",
-            ActivityType::Skiing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/skiing.png",
-            ActivityType::Soccer => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/soccer.png",
-            ActivityType::Softball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/softball.png",
-            ActivityType::Squash => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/squash.png",
-            ActivityType::Swimming => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/swimming_diving.png",
-            ActivityType::Tennis => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/tennis.png",
-            ActivityType::TrackField => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/track_and_field.png",
-            ActivityType::Volleyball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/volleyball.png",
-            ActivityType::WaterPolo => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water_polo.png",
-            ActivityType::Wrestling => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wrestling.png",
-            ActivityType::Boxing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/boxing.png",
-            ActivityType::Dance => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dance.png",
-            ActivityType::Pilates => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pilates.png",
-            ActivityType::Yoga => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/yoga.png",
-            ActivityType::Weightlifting => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/weightlifting.png",
-            ActivityType::Canoeing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/canoeing.png",
-            ActivityType::CrossCountrySkiing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cross_country_skiing.png",
-            ActivityType::FunctionalFitness => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/functional_fitness.png",
-            ActivityType::Duathlon => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/duathlon.png",
-            ActivityType::MachineWorkout => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/machine_workout.png",
-            ActivityType::Gymnastics => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gymnastics.png",
-            ActivityType::HikingRucking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hiking.png",
-            ActivityType::HorsebackRiding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/horseback_riding.png",
-            ActivityType::Jogging => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jogging.png",
-            ActivityType::Kayaking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kayaking.png",
-            ActivityType::MartialArts => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/martial_arts.png",
-            ActivityType::MountainBiking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/mountain_biking.png",
-            ActivityType::ObstacleRacing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/obstacle_racing.png",
-            ActivityType::Powerlifting => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/powerlifting.png",
-            ActivityType::RockClimbing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rock_climbing.png",
-            ActivityType::Paddleboarding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/SUP.png",
-            ActivityType::Triathlon => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/triathlon.png",
-            ActivityType::Walking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/walking.png",
-            ActivityType::Surfing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/surfing.png",
-            ActivityType::Elliptical => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/elliptical.png",
-            ActivityType::Stairmaster => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stairmaster.png",
-            ActivityType::Plyometrics => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/plyometrics.png",
-            ActivityType::Spinning => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spinning.png",
-            ActivityType::Sex => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sex.png",
-            ActivityType::Meditation => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/meditation.png",
-            ActivityType::Other => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/other.png",
-            ActivityType::PitPractice => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pitstop.png",
-            ActivityType::Diving => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/diving.png",
-            ActivityType::OperationsTactical => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/tactical_ops.png",
-            ActivityType::OperationsMedical => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/medical_ops.png",
-            ActivityType::OperationsFlying => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/flying_ops.png",
-            ActivityType::OperationsWater => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water_ops.png",
-            ActivityType::Ultimate => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ultimate_frisbee.png",
-            ActivityType::Climber => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/climber.png",
-            ActivityType::JumpingRope => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jumping_rope.png",
-            ActivityType::AustralianRulesFootball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/australian_football.png",
-            ActivityType::Skateboarding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/skateboarding.png",
-            ActivityType::Coaching => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/coaching.png",
-            ActivityType::IceBath => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_bath.png",
-            ActivityType::Commuting => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/commuting.png",
-            ActivityType::Gaming => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gaming.png",
-            ActivityType::Snowboarding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/snowboarding.png",
-            ActivityType::Motocross => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/motocross.png",
-            ActivityType::Caddying => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/caddying.png",
-            ActivityType::ObstacleCourseRacing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/obstacle-course-racing.png",
-            ActivityType::MotorRacing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/motor-racing.png",
-            ActivityType::Hiit => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hiit.png",
-            ActivityType::Spin => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spin.png",
-            ActivityType::JiuJitsu => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jiu-jitsu.png",
-            ActivityType::ManualLabor => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/manual-labor.png",
-            ActivityType::Cricket => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cricket.png",
-            ActivityType::Pickleball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pickleball.png",
-            ActivityType::InlineSkating => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rollerblading.png",
-            ActivityType::BoxFitness => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/crossfit.png",
-            ActivityType::Spikeball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spikeball.png",
-            ActivityType::WheelchairPushing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wheelchair_pushing.png",
-            ActivityType::PaddleTennis => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/paddle_tennis.png",
-            ActivityType::Barre => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barre.png",
-            ActivityType::StagePerformance => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stage-performance.png",
-            ActivityType::HighStressWork => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/high-stress-work.png",
-            ActivityType::Parkour => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/parkour.png",
-            ActivityType::GaelicFootball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gaelic-football.png",
-            ActivityType::HurlingCamogie => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hurling-camogie.png",
-            ActivityType::CircusArts => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/circus-arts.png",
-            ActivityType::ResonanceFrequencyBreathing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/unknown.png",
-            ActivityType::MassageTherapy => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/massage_therapy.png",
-            ActivityType::StrengthTrainer => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/weightlifting.png",
-            ActivityType::WatchingSports => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spectating.png",
-            ActivityType::AssaultBike => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/assault_bike.png",
-            ActivityType::Kickboxing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kickboxing.png",
-            ActivityType::Stretching => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stretching.png",
-            ActivityType::OtherRecovery => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/other.png",
-            ActivityType::TableTennisPingPong => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ping_pong.png",
-            ActivityType::Badminton => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/badminton.png",
-            ActivityType::Netball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/netball.png",
-            ActivityType::Sauna => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sauna.png",
-            ActivityType::DiscGolf => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/disc_golf.png",
-            ActivityType::YardWorkGardening => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/yard_work.png",
-            ActivityType::AirCompression => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/air_compression.png",
-            ActivityType::PercussiveMassage => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/percussive_massage.png",
-            ActivityType::Paintball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/paintball.png",
-            ActivityType::IceSkating => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_skating.png",
-            ActivityType::Handball => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/handball.png",
-            ActivityType::PercussiveMassageHypervolt => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/percussive_massage.png",
-            ActivityType::AirCompressionNormatec => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/air_compression.png",
-            ActivityType::IncreaseRelaxation => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/increase_relaxation.png",
-            ActivityType::IncreaseAlertness => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/increase_alertness.png",
-            ActivityType::Breathwork => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/breathwork_lungs.png",
-            ActivityType::NonSleepDeepRest => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/non-sleep-deep-rest.png",
-            ActivityType::SteamRoom => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/steam-room.png",
-            ActivityType::F45Training => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/F45.png",
-            ActivityType::Padel => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/padel.png",
-            ActivityType::BarryS => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barrys.png",
-            ActivityType::DedicatedParenting => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dedicated_parenting.png",
-            ActivityType::StrollerWalking => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stroller_walking.png",
-            ActivityType::StrollerJogging => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stroller_jogging.png",
-            ActivityType::Toddlerwearing => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/toddler_wearing.png",
-            ActivityType::Babywearing => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/baby_wearing.png",
-            ActivityType::PlayingWithChild => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/playing_with_child.png",
-            ActivityType::CuddlingWithChild => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cuddling_with_child.png",
-            ActivityType::Barre3 => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barre3.png",
-            ActivityType::HotYoga => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hot_yoga.png",
-            ActivityType::StadiumSteps => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stadium-steps.png",
-            ActivityType::Polo => "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/polo.png",
-            ActivityType::MusicalPerformance => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/musical-performance.png",
-            ActivityType::KiteBoarding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kiteboarding.png",
-            ActivityType::RestorativeYoga => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/restorative-yoga.png",
-            ActivityType::DogWalking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dog-walking.png",
-            ActivityType::WaterSkiing => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water-skiing.png",
-            ActivityType::Wakeboarding => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wakeboarding.png",
-            ActivityType::Cooking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cooking.png",
-            ActivityType::Cleaning => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cleaning.png",
-            ActivityType::WarmBath => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/warm-bath.png",
-            ActivityType::PublicSpeaking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/public-speaking.png",
-            ActivityType::RaceWalking => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/race-walking.png",
-            ActivityType::Driving => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/driving.png",
-            ActivityType::Nap => "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/nap.png"
+        match self {
+            ActivityType::Activity => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/unknown.png"
+            }
+            ActivityType::Running => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/running.png"
+            }
+            ActivityType::Cycling => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cycling.png"
+            }
+            ActivityType::Baseball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/baseball.png"
+            }
+            ActivityType::Basketball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/basketball.png"
+            }
+            ActivityType::Rowing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/crew.png"
+            }
+            ActivityType::Fencing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/fencing.png"
+            }
+            ActivityType::FieldHockey => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/field_hockey.png"
+            }
+            ActivityType::Football => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/football.png"
+            }
+            ActivityType::Golf => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/golf.png"
+            }
+            ActivityType::IceHockey => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_hockey.png"
+            }
+            ActivityType::Lacrosse => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/lacrosse.png"
+            }
+            ActivityType::Rugby => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rugby.png"
+            }
+            ActivityType::Sailing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sailing.png"
+            }
+            ActivityType::Skiing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/skiing.png"
+            }
+            ActivityType::Soccer => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/soccer.png"
+            }
+            ActivityType::Softball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/softball.png"
+            }
+            ActivityType::Squash => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/squash.png"
+            }
+            ActivityType::Swimming => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/swimming_diving.png"
+            }
+            ActivityType::Tennis => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/tennis.png"
+            }
+            ActivityType::TrackField => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/track_and_field.png"
+            }
+            ActivityType::Volleyball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/volleyball.png"
+            }
+            ActivityType::WaterPolo => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water_polo.png"
+            }
+            ActivityType::Wrestling => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wrestling.png"
+            }
+            ActivityType::Boxing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/boxing.png"
+            }
+            ActivityType::Dance => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dance.png"
+            }
+            ActivityType::Pilates => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pilates.png"
+            }
+            ActivityType::Yoga => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/yoga.png"
+            }
+            ActivityType::Weightlifting => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/weightlifting.png"
+            }
+            ActivityType::Canoeing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/canoeing.png"
+            }
+            ActivityType::CrossCountrySkiing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cross_country_skiing.png"
+            }
+            ActivityType::FunctionalFitness => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/functional_fitness.png"
+            }
+            ActivityType::Duathlon => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/duathlon.png"
+            }
+            ActivityType::MachineWorkout => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/machine_workout.png"
+            }
+            ActivityType::Gymnastics => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gymnastics.png"
+            }
+            ActivityType::HikingRucking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hiking.png"
+            }
+            ActivityType::HorsebackRiding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/horseback_riding.png"
+            }
+            ActivityType::Jogging => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jogging.png"
+            }
+            ActivityType::Kayaking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kayaking.png"
+            }
+            ActivityType::MartialArts => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/martial_arts.png"
+            }
+            ActivityType::MountainBiking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/mountain_biking.png"
+            }
+            ActivityType::ObstacleRacing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/obstacle_racing.png"
+            }
+            ActivityType::Powerlifting => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/powerlifting.png"
+            }
+            ActivityType::RockClimbing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rock_climbing.png"
+            }
+            ActivityType::Paddleboarding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/SUP.png"
+            }
+            ActivityType::Triathlon => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/triathlon.png"
+            }
+            ActivityType::Walking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/walking.png"
+            }
+            ActivityType::Surfing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/surfing.png"
+            }
+            ActivityType::Elliptical => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/elliptical.png"
+            }
+            ActivityType::Stairmaster => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stairmaster.png"
+            }
+            ActivityType::Plyometrics => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/plyometrics.png"
+            }
+            ActivityType::Spinning => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spinning.png"
+            }
+            ActivityType::Sex => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sex.png"
+            }
+            ActivityType::Meditation => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/meditation.png"
+            }
+            ActivityType::Other => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/other.png"
+            }
+            ActivityType::PitPractice => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pitstop.png"
+            }
+            ActivityType::Diving => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/diving.png"
+            }
+            ActivityType::OperationsTactical => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/tactical_ops.png"
+            }
+            ActivityType::OperationsMedical => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/medical_ops.png"
+            }
+            ActivityType::OperationsFlying => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/flying_ops.png"
+            }
+            ActivityType::OperationsWater => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water_ops.png"
+            }
+            ActivityType::Ultimate => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ultimate_frisbee.png"
+            }
+            ActivityType::Climber => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/climber.png"
+            }
+            ActivityType::JumpingRope => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jumping_rope.png"
+            }
+            ActivityType::AustralianRulesFootball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/australian_football.png"
+            }
+            ActivityType::Skateboarding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/skateboarding.png"
+            }
+            ActivityType::Coaching => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/coaching.png"
+            }
+            ActivityType::IceBath => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_bath.png"
+            }
+            ActivityType::Commuting => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/commuting.png"
+            }
+            ActivityType::Gaming => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gaming.png"
+            }
+            ActivityType::Snowboarding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/snowboarding.png"
+            }
+            ActivityType::Motocross => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/motocross.png"
+            }
+            ActivityType::Caddying => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/caddying.png"
+            }
+            ActivityType::ObstacleCourseRacing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/obstacle-course-racing.png"
+            }
+            ActivityType::MotorRacing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/motor-racing.png"
+            }
+            ActivityType::Hiit => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hiit.png"
+            }
+            ActivityType::Spin => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spin.png"
+            }
+            ActivityType::JiuJitsu => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/jiu-jitsu.png"
+            }
+            ActivityType::ManualLabor => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/manual-labor.png"
+            }
+            ActivityType::Cricket => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cricket.png"
+            }
+            ActivityType::Pickleball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/pickleball.png"
+            }
+            ActivityType::InlineSkating => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/rollerblading.png"
+            }
+            ActivityType::BoxFitness => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/crossfit.png"
+            }
+            ActivityType::Spikeball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spikeball.png"
+            }
+            ActivityType::WheelchairPushing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wheelchair_pushing.png"
+            }
+            ActivityType::PaddleTennis => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/paddle_tennis.png"
+            }
+            ActivityType::Barre => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barre.png"
+            }
+            ActivityType::StagePerformance => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stage-performance.png"
+            }
+            ActivityType::HighStressWork => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/high-stress-work.png"
+            }
+            ActivityType::Parkour => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/parkour.png"
+            }
+            ActivityType::GaelicFootball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/gaelic-football.png"
+            }
+            ActivityType::HurlingCamogie => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hurling-camogie.png"
+            }
+            ActivityType::CircusArts => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/circus-arts.png"
+            }
+            ActivityType::ResonanceFrequencyBreathing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/unknown.png"
+            }
+            ActivityType::MassageTherapy => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/massage_therapy.png"
+            }
+            ActivityType::StrengthTrainer => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/weightlifting.png"
+            }
+            ActivityType::WatchingSports => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/spectating.png"
+            }
+            ActivityType::AssaultBike => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/assault_bike.png"
+            }
+            ActivityType::Kickboxing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kickboxing.png"
+            }
+            ActivityType::Stretching => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stretching.png"
+            }
+            ActivityType::OtherRecovery => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/other.png"
+            }
+            ActivityType::TableTennisPingPong => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ping_pong.png"
+            }
+            ActivityType::Badminton => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/badminton.png"
+            }
+            ActivityType::Netball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/netball.png"
+            }
+            ActivityType::Sauna => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/sauna.png"
+            }
+            ActivityType::DiscGolf => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/disc_golf.png"
+            }
+            ActivityType::YardWorkGardening => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/yard_work.png"
+            }
+            ActivityType::AirCompression => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/air_compression.png"
+            }
+            ActivityType::PercussiveMassage => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/percussive_massage.png"
+            }
+            ActivityType::Paintball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/paintball.png"
+            }
+            ActivityType::IceSkating => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/ice_skating.png"
+            }
+            ActivityType::Handball => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/handball.png"
+            }
+            ActivityType::PercussiveMassageHypervolt => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/percussive_massage.png"
+            }
+            ActivityType::AirCompressionNormatec => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/air_compression.png"
+            }
+            ActivityType::IncreaseRelaxation => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/increase_relaxation.png"
+            }
+            ActivityType::IncreaseAlertness => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/increase_alertness.png"
+            }
+            ActivityType::Breathwork => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/breathwork_lungs.png"
+            }
+            ActivityType::NonSleepDeepRest => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/non-sleep-deep-rest.png"
+            }
+            ActivityType::SteamRoom => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/steam-room.png"
+            }
+            ActivityType::F45Training => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/F45.png"
+            }
+            ActivityType::Padel => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/padel.png"
+            }
+            ActivityType::BarryS => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barrys.png"
+            }
+            ActivityType::DedicatedParenting => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dedicated_parenting.png"
+            }
+            ActivityType::StrollerWalking => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stroller_walking.png"
+            }
+            ActivityType::StrollerJogging => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stroller_jogging.png"
+            }
+            ActivityType::Toddlerwearing => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/toddler_wearing.png"
+            }
+            ActivityType::Babywearing => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/baby_wearing.png"
+            }
+            ActivityType::PlayingWithChild => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/playing_with_child.png"
+            }
+            ActivityType::CuddlingWithChild => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cuddling_with_child.png"
+            }
+            ActivityType::Barre3 => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/barre3.png"
+            }
+            ActivityType::HotYoga => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/hot_yoga.png"
+            }
+            ActivityType::StadiumSteps => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/stadium-steps.png"
+            }
+            ActivityType::Polo => {
+                "https://s3.us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/polo.png"
+            }
+            ActivityType::MusicalPerformance => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/musical-performance.png"
+            }
+            ActivityType::KiteBoarding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/kiteboarding.png"
+            }
+            ActivityType::RestorativeYoga => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/restorative-yoga.png"
+            }
+            ActivityType::DogWalking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/dog-walking.png"
+            }
+            ActivityType::WaterSkiing => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/water-skiing.png"
+            }
+            ActivityType::Wakeboarding => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/wakeboarding.png"
+            }
+            ActivityType::Cooking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cooking.png"
+            }
+            ActivityType::Cleaning => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/cleaning.png"
+            }
+            ActivityType::WarmBath => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/warm-bath.png"
+            }
+            ActivityType::PublicSpeaking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/public-speaking.png"
+            }
+            ActivityType::RaceWalking => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/race-walking.png"
+            }
+            ActivityType::Driving => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/driving.png"
+            }
+            ActivityType::Nap => {
+                "https://s3-us-west-2.amazonaws.com/icons.whoop.com/mobile/activities/nap.png"
+            }
         }
     }
 
@@ -955,75 +1238,6 @@ impl SearchActivityPeriods {
         Self {
             activity: Some(activity),
             ..self
-        }
-    }
-}
-
-impl SearchActivityPeriods {
-    fn query(self) -> Condition {
-        Condition::all()
-            .add_option(self.from.map(|from| activities::Column::Start.gt(from)))
-            .add_option(self.to.map(|to| activities::Column::End.lt(to)))
-            .add_option(
-                self.activity
-                    .map(|activity| activities::Column::Activity.eq(activity.to_string())),
-            )
-    }
-}
-
-impl DatabaseHandler {
-    pub async fn create_activity(&self, activity: ActivityPeriod) -> anyhow::Result<()> {
-        let model = activities::ActiveModel {
-            id: NotSet,
-            period_id: Set(activity.period_id),
-            start: Set(activity.from),
-            end: Set(activity.to),
-            activity: Set(activity.activity.to_string()),
-        };
-
-        activities::Entity::insert(model)
-            .on_conflict(
-                OnConflict::column(activities::Column::Start)
-                    .update_column(activities::Column::End)
-                    .update_column(activities::Column::Activity)
-                    .to_owned(),
-            )
-            .exec(&self.db)
-            .await?;
-
-        Ok(())
-    }
-    pub async fn search_activities(
-        &self,
-        options: SearchActivityPeriods,
-    ) -> anyhow::Result<Vec<ActivityPeriod>> {
-        let activities = activities::Entity::find()
-            .filter(options.query())
-            .all(&self.db)
-            .await?
-            .into_iter()
-            .map(ActivityPeriod::from)
-            .collect();
-
-        Ok(activities)
-    }
-
-    pub async fn get_latest_activity(&self) -> anyhow::Result<Option<ActivityPeriod>> {
-        Ok(activities::Entity::find()
-            .order_by_desc(activities::Column::End)
-            .one(&self.db)
-            .await?
-            .map(ActivityPeriod::from))
-    }
-}
-
-impl From<Model> for ActivityPeriod {
-    fn from(value: Model) -> Self {
-        Self {
-            period_id: value.period_id,
-            from: value.start,
-            to: value.end,
-            activity: ActivityType::from_str(value.activity.as_str()).unwrap(),
         }
     }
 }

@@ -1,0 +1,9 @@
+[package]
+name = "openwhoop-algos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.40"
+openwhoop-types = { version = "0.1.0", path = "../openwhoop-types" }
+whoop = { version = "0.1.0", path = "../whoop" }

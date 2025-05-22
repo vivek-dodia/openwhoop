@@ -28,7 +28,7 @@ pub struct SleepMetrics {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct ConsistencyScore {
-    pub score: f64,
+    pub total_score: f64,
     pub duration_score: f64,
     pub timing_score: f64,
 }
@@ -93,7 +93,7 @@ impl SleepConsistencyAnalyzer {
         let overall_score = mean(&total_scores);
 
         let score = ConsistencyScore {
-            score: round_float(overall_score),
+            total_score: round_float(overall_score),
             duration_score,
             timing_score,
         };
@@ -164,7 +164,7 @@ impl Display for SleepMetrics {
         ))?;
         f.write_fmt(format_args!(
             "\tDuration score: {}\n\tTiming score: {}\n\tOverall score: {}",
-            self.score.duration_score, self.score.timing_score, self.score.score,
+            self.score.duration_score, self.score.timing_score, self.score.total_score,
         ))?;
         Ok(())
     }
@@ -172,7 +172,7 @@ impl Display for SleepMetrics {
 
 #[cfg(test)]
 mod tests {
-    use crate::algo::sleep_consistency::{ConsistencyScore, DurationMetric};
+    use crate::sleep_consistency::{ConsistencyScore, DurationMetric};
 
     use super::SleepConsistencyAnalyzer;
 

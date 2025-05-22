@@ -3,9 +3,9 @@ use db_entities::heart_rate;
 use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use whoop::{Activity, ParsedHistoryReading};
 
-use super::DatabaseHandler;
+use crate::DatabaseHandler;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SearchHistory {
     pub from: Option<NaiveDateTime>,
     pub to: Option<NaiveDateTime>,

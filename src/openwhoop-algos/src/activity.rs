@@ -4,6 +4,7 @@ use whoop::{Activity, ParsedHistoryReading};
 const ACTIVITY_CHANGE_THRESHOLD: Duration = Duration::minutes(15);
 const MIN_SLEEP_DURATION: Duration = Duration::minutes(60);
 pub const MAX_SLEEP_PAUSE: Duration = Duration::minutes(60);
+const MAX_PAUSE: Duration = Duration::minutes(10);
 
 #[derive(Clone, Copy, Debug)]
 pub struct ActivityPeriod {
@@ -139,7 +140,7 @@ impl ActivityPeriod {
             let mut last_time = first.time;
 
             for model in iter {
-                if model.activity != current_activity {
+                if model.activity != current_activity || (model.time - last_time > MAX_PAUSE) {
                     periods.push(TempActivity {
                         activity: current_activity,
                         start: start_time,

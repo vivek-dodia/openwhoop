@@ -1,0 +1,15 @@
+[package]
+name = "openwhoop-db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+chrono = "0.4.40"
+db-entities = { version = "0.1.0", path = "../db-entities" }
+openwhoop-algos = { version = "0.1.0", path = "../openwhoop-algos" }
+openwhoop-migration = { version = "0.1.0", path = "../sea-migrations" }
+openwhoop-types = { version = "0.1.0", path = "../openwhoop-types" }
+sea-orm = "1.1.8"
+uuid = "1.16.0"
+whoop = { version = "0.1.0", path = "../whoop" }

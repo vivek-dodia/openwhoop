@@ -2,7 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "sleep_cycles")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
@@ -17,6 +17,8 @@ pub struct Model {
     pub min_hrv: i32,
     pub max_hrv: i32,
     pub avg_hrv: i32,
+    #[sea_orm(column_type = "Double", nullable)]
+    pub score: Option<f64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
