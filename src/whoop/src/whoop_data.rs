@@ -1,7 +1,7 @@
 use crate::{
+    WhoopError, WhoopPacket,
     constants::{CommandNumber, MetadataType, PacketType},
     helpers::BufferReader,
-    WhoopError, WhoopPacket,
 };
 
 mod history;
@@ -129,8 +129,6 @@ impl WhoopData {
 
         let activity = packet.read_u32_le()?;
 
-        dbg!(hex::encode(packet));
-
         Ok(Self::HistoryReading(HistoryReading {
             unix,
             bpm,
@@ -143,9 +141,9 @@ impl WhoopData {
 #[cfg(test)]
 mod tests {
     use crate::{
-        constants::{MetadataType, PacketType},
-        whoop_data::{history::HistoryReading, WhoopData},
         WhoopPacket,
+        constants::{MetadataType, PacketType},
+        whoop_data::{WhoopData, history::HistoryReading},
     };
 
     #[test]

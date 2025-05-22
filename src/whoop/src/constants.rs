@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use uuid::{uuid, Uuid};
+use uuid::{Uuid, uuid};
 
 pub const WHOOP_SERVICE: Uuid = uuid!("61080001-8d6d-82b8-614a-1c8cb0f8dcc6");
 pub const CMD_TO_STRAP: Uuid = uuid!("61080002-8d6d-82b8-614a-1c8cb0f8dcc6");

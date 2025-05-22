@@ -9,10 +9,10 @@ use futures::StreamExt;
 use tokio::time::sleep;
 use uuid::Uuid;
 use whoop::{
+    WhoopPacket,
     constants::{
         CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
     },
-    WhoopPacket,
 };
 
 use crate::{db::DatabaseHandler, openwhoop::OpenWhoop};

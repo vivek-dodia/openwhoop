@@ -3,13 +3,13 @@ use chrono::{DateTime, Local, TimeDelta};
 use db_entities::packets;
 use openwhoop_db::{DatabaseHandler, SearchHistory};
 use whoop::{
-    constants::{MetadataType, DATA_FROM_STRAP},
     Activity, HistoryReading, WhoopData, WhoopPacket,
+    constants::{DATA_FROM_STRAP, MetadataType},
 };
 
 use crate::{
     algo::{
-        helpers::format_hm::FormatHM, ActivityPeriod, SleepCycle, StressCalculator, MAX_SLEEP_PAUSE,
+        ActivityPeriod, MAX_SLEEP_PAUSE, SleepCycle, StressCalculator, helpers::format_hm::FormatHM,
     },
     types::activities,
 };

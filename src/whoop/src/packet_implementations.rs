@@ -1,8 +1,8 @@
 use chrono::Utc;
 
 use crate::{
-    constants::{CommandNumber, PacketType},
     WhoopPacket,
+    constants::{CommandNumber, PacketType},
 };
 
 impl WhoopPacket {
@@ -115,14 +115,32 @@ impl WhoopPacket {
             vec![41, 1],
         )
     }
+
+    pub fn restart() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::RebootStrap.as_u8(),
+            vec![0x00],
+        )
+    }
+
+    pub fn erase() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ForceTrim.as_u8(),
+            vec![0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0x00],
+        )
+    }
 }
 
 #[test]
 fn view_bytes() {
-    let packet = WhoopPacket::history_start();
+    let packet = WhoopPacket::erase();
     let bytes = packet.framed_packet();
     println!("SendHistoricalData");
-    println!("{:?}", bytes);
+    println!("aa10005723cf19fefefefefefefefe002f8744f6");
     println!("{}", hex::encode(bytes));
 
     // let packet = WhoopPacket::hello_harvard();

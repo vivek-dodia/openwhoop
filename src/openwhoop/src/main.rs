@@ -13,13 +13,13 @@ use clap::{Parser, Subcommand};
 use db_entities::packets;
 use dotenv::dotenv;
 use openwhoop::{
+    OpenWhoop, WhoopDevice,
     algo::{ExerciseMetrics, SleepConsistencyAnalyzer},
     db::DatabaseHandler,
     types::activities::{ActivityType, SearchActivityPeriods},
-    OpenWhoop, WhoopDevice,
 };
 use tokio::time::sleep;
-use whoop::{constants::WHOOP_SERVICE, WhoopPacket};
+use whoop::{WhoopPacket, constants::WHOOP_SERVICE};
 
 #[cfg(target_os = "linux")]
 pub type DeviceId = BDAddr;
@@ -86,6 +86,10 @@ pub enum OpenWhoopCommand {
     /// Copy packets from one database into another
     ///
     Merge { from: String },
+    Restart {
+        #[arg(long, env)]
+        whoop: DeviceId,
+    },
 }
 
 #[tokio::main]
@@ -270,6 +274,13 @@ async fn main() -> anyhow::Result<()> {
                 println!("{}", id);
             }
 
+            Ok(())
+        }
+        OpenWhoopCommand::Restart { whoop } => {
+            let peripheral = scan_command(adapter, Some(whoop)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
+            whoop.connect().await?;
+            whoop.send_command(WhoopPacket::restart()).await?;
             Ok(())
         }
     }
