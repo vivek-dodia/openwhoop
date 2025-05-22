@@ -1,4 +1,11 @@
-use std::{collections::BTreeSet, time::Duration};
+use std::{
+    collections::BTreeSet,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use btleplug::{
     api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
@@ -63,13 +70,12 @@ impl WhoopDevice {
         self.subscribe(EVENTS_FROM_STRAP).await?;
         self.subscribe(MEMFAULT).await?;
 
+        self.send_command(WhoopPacket::hello_harvard()).await?;
+        self.send_command(WhoopPacket::set_time()).await?;
+        self.send_command(WhoopPacket::get_name()).await?;
+
         self.send_command(WhoopPacket::enter_high_freq_sync())
             .await?;
-
-        // self.send_command(WhoopPacket::hello_harvard()).await?;
-        // self.send_command(WhoopPacket::set_time()).await?;
-        // self.send_command(WhoopPacket::get_name()).await?;
-
         Ok(())
     }
 
@@ -85,13 +91,16 @@ impl WhoopDevice {
         Ok(())
     }
 
-    pub async fn sync_history(&mut self) -> anyhow::Result<()> {
+    pub async fn sync_history(&mut self, should_exit: Arc<AtomicBool>) -> anyhow::Result<()> {
         let mut notifications = self.peripheral.notifications().await?;
         // self.send_command(WhoopPacket::toggle_r7_data_collection())
         //     .await?;
         self.send_command(WhoopPacket::history_start()).await?;
 
         'a: loop {
+            if should_exit.load(Ordering::SeqCst) {
+                break;
+            }
             let notification = notifications.next();
             let sleep_ = sleep(Duration::from_secs(10));
 

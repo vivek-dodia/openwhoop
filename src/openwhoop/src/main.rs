@@ -1,7 +1,14 @@
 #[macro_use]
 extern crate log;
 
-use std::{str::FromStr, time::Duration};
+use std::{
+    str::FromStr,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use anyhow::anyhow;
 use btleplug::{
@@ -118,10 +125,18 @@ async fn main() -> anyhow::Result<()> {
             let peripheral = scan_command(adapter, Some(whoop)).await?;
             let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
 
+            let should_exit = Arc::new(AtomicBool::new(false));
+
+            let se = should_exit.clone();
+            ctrlc::set_handler(move || {
+                println!("Received CTRL+C!");
+                se.store(true, Ordering::SeqCst);
+            })?;
+
             whoop.connect().await?;
             whoop.initialize().await?;
 
-            let result = whoop.sync_history().await;
+            let result = whoop.sync_history(should_exit).await;
 
             info!("Exiting...");
             if let Err(e) = result {
