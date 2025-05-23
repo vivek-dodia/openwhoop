@@ -18,7 +18,7 @@ use uuid::Uuid;
 use whoop::{
     WhoopPacket,
     constants::{
-        CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
+    CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
     },
 };
 
@@ -140,5 +140,22 @@ impl WhoopDevice {
     async fn on_sleep(&mut self) -> anyhow::Result<bool> {
         let is_connected = self.peripheral.is_connected().await?;
         Ok(!is_connected)
+    }
+
+    pub async fn get_version(&mut self) -> anyhow::Result<()> {
+        self.subscribe(CMD_FROM_STRAP).await?;
+
+        let mut notifications = self.peripheral.notifications().await?;
+        self.send_command(WhoopPacket::version()).await?;
+
+        while let Some(notification) = notifications.next().await {
+            let packet = match self.debug_packets {
+                true => self.whoop.store_packet(notification).await?,
+                false => Model { id: 0, uuid: notification.uuid, bytes: notification.value },
+            };
+            self.whoop.handle_packet(packet).await?;
+            break;
+        }
+        Ok(())
     }
 }

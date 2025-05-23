@@ -30,6 +30,10 @@ pub enum WhoopData {
         unix: u32,
         event: u8,
     },
+    VersionInfo {
+        harvard: String,
+        boylston: String,
+    }
 }
 
 impl WhoopData {
@@ -39,6 +43,15 @@ impl WhoopData {
             PacketType::Metadata => Self::parse_metadata(packet),
             PacketType::ConsoleLogs => Self::parse_console_log(packet.data),
             PacketType::Event => Self::parse_event(packet),
+            PacketType::CommandResponse => {
+                let command = CommandNumber::from_u8(packet.cmd)
+                    .ok_or(WhoopError::InvalidCommandType(packet.cmd))?;
+
+                match command {
+                    CommandNumber::ReportVersionInfo => Self::parse_report_version_info(packet.data),
+                    _ => Err(WhoopError::Unimplemented),
+                }
+            }
             _ => Err(WhoopError::Unimplemented),
         }
     }
@@ -135,6 +148,22 @@ impl WhoopData {
             rr,
             activity,
         }))
+    }
+    
+    fn parse_report_version_info(mut packet: Vec<u8>) -> Result<Self, WhoopError> {
+        let _ = packet.read::<3>();
+        let h_major = packet.read_u32_le()?;
+        let h_minor = packet.read_u32_le()?;
+        let h_patch = packet.read_u32_le()?;
+        let h_build = packet.read_u32_le()?;
+        let b_major = packet.read_u32_le()?;
+        let b_minor = packet.read_u32_le()?;
+        let b_patch = packet.read_u32_le()?;
+        let b_build = packet.read_u32_le()?;
+        Ok(Self::VersionInfo {
+            harvard: format!("{}.{}.{}.{}", h_major, h_minor, h_patch, h_build),
+            boylston: format!("{}.{}.{}.{}", b_major, b_minor, b_patch, b_build),
+        })
     }
 }
 
