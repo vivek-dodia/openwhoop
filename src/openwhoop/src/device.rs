@@ -16,7 +16,7 @@ use std::{
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 use whoop::{
-    WhoopPacket,
+    WhoopData, WhoopPacket,
     constants::{
         CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
     },
@@ -151,12 +151,11 @@ impl WhoopDevice {
         let timeout_duration = Duration::from_secs(5);
         match timeout(timeout_duration, notifications.next()).await {
             Ok(Some(notification)) => {
-                let packet = Model {
-                    id: 0,
-                    uuid: notification.uuid,
-                    bytes: notification.value,
-                };
-                self.whoop.handle_packet(packet).await?;
+                let packet = WhoopPacket::from_data(notification.value)?;
+                let data = WhoopData::from_packet(packet)?;
+                if let WhoopData::VersionInfo { harvard, boylston } = data {
+                    info!("version harvard {} boylston {}", harvard, boylston);
+                }
                 Ok(())
             }
             Ok(None) => Err(anyhow!("stream ended unexpectedly")),
