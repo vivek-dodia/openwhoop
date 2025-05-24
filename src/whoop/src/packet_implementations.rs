@@ -133,7 +133,7 @@ impl WhoopPacket {
             vec![0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0x00],
         )
     }
-    
+
     pub fn version() -> WhoopPacket {
         WhoopPacket::new(
             PacketType::Command,

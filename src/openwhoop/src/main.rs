@@ -99,11 +99,11 @@ pub enum OpenWhoopCommand {
     },
     ///
     /// Get device firmware version info
-    /// 
+    ///
     Version {
         #[arg(long, env)]
         whoop: DeviceId,
-    }
+    },
 }
 
 #[tokio::main]
@@ -307,7 +307,7 @@ async fn main() -> anyhow::Result<()> {
         }
         OpenWhoopCommand::Version { whoop } => {
             let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
+            let mut whoop = WhoopDevice::new(peripheral, db_handler, false);
             whoop.connect().await?;
             whoop.get_version().await?;
             Ok(())

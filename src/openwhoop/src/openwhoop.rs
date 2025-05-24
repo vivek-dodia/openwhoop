@@ -4,7 +4,7 @@ use db_entities::packets;
 use openwhoop_db::{DatabaseHandler, SearchHistory};
 use whoop::{
     Activity, HistoryReading, WhoopData, WhoopPacket,
-    constants::{DATA_FROM_STRAP, CMD_FROM_STRAP, MetadataType},
+    constants::{CMD_FROM_STRAP, DATA_FROM_STRAP, MetadataType},
 };
 
 use crate::{
@@ -78,16 +78,13 @@ impl OpenWhoop {
             }
             CMD_FROM_STRAP => {
                 let packet = WhoopPacket::from_data(packet.bytes)?;
-            
+
                 let Ok(data) = WhoopData::from_packet(packet) else {
                     return Ok(None);
                 };
-                match data {
-                    WhoopData::VersionInfo {harvard, boylston} => {
-                        info!("version harvard {} boylston {}", harvard, boylston);
-                        return Ok(Some(WhoopPacket::version()))
-                    }
-                    _ => {}
+                if let WhoopData::VersionInfo { harvard, boylston } = data {
+                    info!("version harvard {} boylston {}", harvard, boylston);
+                    return Ok(Some(WhoopPacket::version()));
                 }
             }
             _ => {

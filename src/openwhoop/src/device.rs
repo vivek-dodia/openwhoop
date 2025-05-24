@@ -1,3 +1,10 @@
+use anyhow::anyhow;
+use btleplug::{
+    api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
+    platform::Peripheral,
+};
+use db_entities::packets::Model;
+use futures::StreamExt;
 use std::{
     collections::BTreeSet,
     sync::{
@@ -6,19 +13,12 @@ use std::{
     },
     time::Duration,
 };
-
-use btleplug::{
-    api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
-    platform::Peripheral,
-};
-use db_entities::packets::Model;
-use futures::StreamExt;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 use whoop::{
     WhoopPacket,
     constants::{
-    CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
+        CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
     },
 };
 
@@ -148,14 +148,19 @@ impl WhoopDevice {
         let mut notifications = self.peripheral.notifications().await?;
         self.send_command(WhoopPacket::version()).await?;
 
-        while let Some(notification) = notifications.next().await {
-            let packet = match self.debug_packets {
-                true => self.whoop.store_packet(notification).await?,
-                false => Model { id: 0, uuid: notification.uuid, bytes: notification.value },
-            };
-            self.whoop.handle_packet(packet).await?;
-            break;
+        let timeout_duration = Duration::from_secs(5);
+        match timeout(timeout_duration, notifications.next()).await {
+            Ok(Some(notification)) => {
+                let packet = Model {
+                    id: 0,
+                    uuid: notification.uuid,
+                    bytes: notification.value,
+                };
+                self.whoop.handle_packet(packet).await?;
+                Ok(())
+            }
+            Ok(None) => Err(anyhow!("stream ended unexpectedly")),
+            Err(_) => Err(anyhow!("timed out waiting for version notification")),
         }
-        Ok(())
     }
 }
