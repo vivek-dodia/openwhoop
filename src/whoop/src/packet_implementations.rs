@@ -133,6 +133,15 @@ impl WhoopPacket {
             vec![0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0x00],
         )
     }
+
+    pub fn version() -> WhoopPacket {
+        WhoopPacket::new(
+            PacketType::Command,
+            0,
+            CommandNumber::ReportVersionInfo.as_u8(),
+            vec![0x00],
+        )
+    }
 }
 
 #[test]

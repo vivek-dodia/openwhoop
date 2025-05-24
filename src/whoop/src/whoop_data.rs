@@ -30,6 +30,10 @@ pub enum WhoopData {
         unix: u32,
         event: u8,
     },
+    VersionInfo {
+        harvard: String,
+        boylston: String,
+    },
 }
 
 impl WhoopData {
@@ -39,6 +43,17 @@ impl WhoopData {
             PacketType::Metadata => Self::parse_metadata(packet),
             PacketType::ConsoleLogs => Self::parse_console_log(packet.data),
             PacketType::Event => Self::parse_event(packet),
+            PacketType::CommandResponse => {
+                let command = CommandNumber::from_u8(packet.cmd)
+                    .ok_or(WhoopError::InvalidCommandType(packet.cmd))?;
+
+                match command {
+                    CommandNumber::ReportVersionInfo => {
+                        Self::parse_report_version_info(packet.data)
+                    }
+                    _ => Err(WhoopError::Unimplemented),
+                }
+            }
             _ => Err(WhoopError::Unimplemented),
         }
     }
@@ -135,6 +150,22 @@ impl WhoopData {
             rr,
             activity,
         }))
+    }
+
+    fn parse_report_version_info(mut data: Vec<u8>) -> Result<Self, WhoopError> {
+        let _ = data.read::<3>();
+        let h_major = data.read_u32_le()?;
+        let h_minor = data.read_u32_le()?;
+        let h_patch = data.read_u32_le()?;
+        let h_build = data.read_u32_le()?;
+        let b_major = data.read_u32_le()?;
+        let b_minor = data.read_u32_le()?;
+        let b_patch = data.read_u32_le()?;
+        let b_build = data.read_u32_le()?;
+        Ok(Self::VersionInfo {
+            harvard: format!("{}.{}.{}.{}", h_major, h_minor, h_patch, h_build),
+            boylston: format!("{}.{}.{}.{}", b_major, b_minor, b_patch, b_build),
+        })
     }
 }
 
@@ -267,5 +298,19 @@ mod tests {
                 cmd: MetadataType::HistoryStart,
             }
         );
+    }
+
+    #[test]
+    fn parse_version_response() {
+        let response = hex::decode("aa50000c2477070a01012900000011000000020000000000000011000000020000000200000000000000030000000400000000000000000000000300000006000000000000000000000008050100000074b95569").expect("invalid data");
+        let packet = WhoopPacket::from_data(response).expect("invalid packet");
+        let data = WhoopData::from_packet(packet).expect("invalid packet");
+        assert_eq!(
+            data,
+            WhoopData::VersionInfo {
+                harvard: String::from("41.17.2.0"),
+                boylston: String::from("17.2.2.0")
+            }
+        )
     }
 }
