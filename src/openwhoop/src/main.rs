@@ -344,6 +344,7 @@ async fn scan_command(adapter: Adapter, device_id: Option<DeviceId>) -> anyhow::
 
             #[cfg(target_os = "linux")]
             if properties.address == *device_id {
+                adapter.stop_scan().await?;
                 return Ok(peripheral);
             }
 
@@ -353,6 +354,7 @@ async fn scan_command(adapter: Adapter, device_id: Option<DeviceId>) -> anyhow::
                     continue;
                 };
                 if sanitize_name(&name).starts_with(device_id) {
+                    adapter.stop_scan().await?;
                     return Ok(peripheral);
                 }
             }
