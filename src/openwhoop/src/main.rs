@@ -2,6 +2,7 @@
 extern crate log;
 
 use std::{
+    io,
     str::FromStr,
     sync::{
         Arc,
@@ -16,7 +17,8 @@ use btleplug::{
     platform::{Adapter, Manager, Peripheral},
 };
 use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, TimeDelta, Utc};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{Shell, generate};
 use db_entities::packets;
 use dotenv::dotenv;
 use openwhoop::{
@@ -104,6 +106,10 @@ pub enum OpenWhoopCommand {
         #[arg(long, env)]
         whoop: DeviceId,
     },
+    ///
+    /// Generate Shell completions
+    ///
+    Completions { shell: Shell },
 }
 
 #[tokio::main]
@@ -310,6 +316,12 @@ async fn main() -> anyhow::Result<()> {
             let mut whoop = WhoopDevice::new(peripheral, adapter, db_handler, false);
             whoop.connect().await?;
             whoop.get_version().await?;
+            Ok(())
+        }
+        OpenWhoopCommand::Completions { shell } => {
+            let mut command = OpenWhoopCli::command();
+            let bin_name = command.get_name().to_string();
+            generate(shell, &mut command, bin_name, &mut io::stdout());
             Ok(())
         }
     }
