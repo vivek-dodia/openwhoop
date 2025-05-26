@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use btleplug::{
-    api::{CharPropFlags, Characteristic, Peripheral as _, WriteType},
-    platform::Peripheral,
+    api::{Central, CharPropFlags, Characteristic, Peripheral as _, WriteType},
+    platform::{Adapter, Peripheral},
 };
 use db_entities::packets::Model;
 use futures::StreamExt;
@@ -28,19 +28,27 @@ pub struct WhoopDevice {
     peripheral: Peripheral,
     whoop: OpenWhoop,
     debug_packets: bool,
+    adapter: Adapter,
 }
 
 impl WhoopDevice {
-    pub fn new(peripheral: Peripheral, db: DatabaseHandler, debug_packets: bool) -> Self {
+    pub fn new(
+        peripheral: Peripheral,
+        adapter: Adapter,
+        db: DatabaseHandler,
+        debug_packets: bool,
+    ) -> Self {
         Self {
             peripheral,
             whoop: OpenWhoop::new(db),
             debug_packets,
+            adapter,
         }
     }
 
     pub async fn connect(&mut self) -> anyhow::Result<()> {
         self.peripheral.connect().await?;
+        let _ = self.adapter.stop_scan().await;
         self.peripheral.discover_services().await?;
         Ok(())
     }

@@ -125,12 +125,12 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.subcommand {
         OpenWhoopCommand::Scan => {
-            scan_command(adapter, None).await?;
+            scan_command(&adapter, None).await?;
             Ok(())
         }
         OpenWhoopCommand::DownloadHistory { whoop } => {
-            let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
+            let peripheral = scan_command(&adapter, Some(whoop)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, adapter, db_handler, cli.debug_packets);
 
             let should_exit = Arc::new(AtomicBool::new(false));
 
@@ -250,8 +250,8 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         OpenWhoopCommand::SetAlarm { whoop, alarm_time } => {
-            let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
+            let peripheral = scan_command(&adapter, Some(whoop)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, adapter, db_handler, cli.debug_packets);
             whoop.connect().await?;
 
             let time = alarm_time.unix();
@@ -299,15 +299,15 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         OpenWhoopCommand::Restart { whoop } => {
-            let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler, cli.debug_packets);
+            let peripheral = scan_command(&adapter, Some(whoop)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, adapter, db_handler, cli.debug_packets);
             whoop.connect().await?;
             whoop.send_command(WhoopPacket::restart()).await?;
             Ok(())
         }
         OpenWhoopCommand::Version { whoop } => {
-            let peripheral = scan_command(adapter, Some(whoop)).await?;
-            let mut whoop = WhoopDevice::new(peripheral, db_handler, false);
+            let peripheral = scan_command(&adapter, Some(whoop)).await?;
+            let mut whoop = WhoopDevice::new(peripheral, adapter, db_handler, false);
             whoop.connect().await?;
             whoop.get_version().await?;
             Ok(())
@@ -315,7 +315,10 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn scan_command(adapter: Adapter, device_id: Option<DeviceId>) -> anyhow::Result<Peripheral> {
+async fn scan_command(
+    adapter: &Adapter,
+    device_id: Option<DeviceId>,
+) -> anyhow::Result<Peripheral> {
     adapter
         .start_scan(ScanFilter {
             services: vec![WHOOP_SERVICE],
