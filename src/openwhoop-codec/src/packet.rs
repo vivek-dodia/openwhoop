@@ -8,6 +8,8 @@ pub struct WhoopPacket {
     pub seq: u8,
     pub cmd: u8,
     pub data: Vec<u8>,
+    pub partial: bool,
+    pub size: usize,
 }
 
 impl WhoopPacket {
@@ -22,7 +24,9 @@ impl WhoopPacket {
             packet_type,
             seq,
             cmd,
+            size: data.len(),
             data,
+            partial: false,
         }
     }
 
@@ -45,16 +49,19 @@ impl WhoopPacket {
             return Err(WhoopError::InvalidHeaderCrc8);
         }
 
-        // Verify data CRC32
-        let length = u16::from_le_bytes(length_buffer) as usize;
-        if length > data.len() || length < 8 {
+        let length = usize::from(u16::from_le_bytes(length_buffer));
+        let partial = data.len() < length;
+        if length < 8 {
             return Err(WhoopError::InvalidPacketLength);
         }
 
-        let expected_crc32 = u32::from_le_bytes(data.read_end()?);
-        let calculated_crc32 = Self::crc32(&data);
-        if calculated_crc32 != expected_crc32 {
-            return Err(WhoopError::InvalidDataCrc32);
+        // Verify data CRC32
+        if !partial {
+            let expected_crc32 = u32::from_le_bytes(data.read_end()?);
+            let calculated_crc32 = Self::crc32(&data);
+            if calculated_crc32 != expected_crc32 {
+                return Err(WhoopError::InvalidDataCrc32);
+            }
         }
 
         Ok(Self {
@@ -66,6 +73,8 @@ impl WhoopPacket {
             seq: data.pop_front()?,
             cmd: data.pop_front()?,
             data,
+            partial,
+            size: length,
         })
     }
 
@@ -164,5 +173,70 @@ mod tests {
         assert_eq!(parsed.seq, original_packet.seq);
         assert_eq!(parsed.cmd, original_packet.cmd);
         assert_eq!(parsed.data, original_packet.data);
+    }
+
+    #[test]
+    fn packet_too_short() {
+        let result = WhoopPacket::from_data(vec![0xAA, 0x01]);
+        assert!(matches!(result, Err(WhoopError::PacketTooShort)));
+    }
+
+    #[test]
+    fn invalid_sof() {
+        let result = WhoopPacket::from_data(vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        assert!(matches!(result, Err(WhoopError::InvalidSof)));
+    }
+
+    #[test]
+    fn invalid_header_crc8() {
+        // SOF + length bytes + wrong CRC8
+        let mut data = vec![0xAA, 0x0B, 0x00, 0xFF]; // 0xFF is wrong CRC
+        data.extend_from_slice(&[0; 20]);
+        let result = WhoopPacket::from_data(data);
+        assert!(matches!(result, Err(WhoopError::InvalidHeaderCrc8)));
+    }
+
+    #[test]
+    fn with_seq_changes_seq() {
+        let packet = WhoopPacket::new(PacketType::Command, 0, 1, vec![]);
+        let packet = packet.with_seq(42);
+        assert_eq!(packet.seq, 42);
+    }
+
+    #[test]
+    fn display_format() {
+        let packet = WhoopPacket::new(PacketType::Command, 1, 5, vec![0xAB, 0xCD]);
+        let display = format!("{}", packet);
+        assert!(display.contains("Command"));
+        assert!(display.contains("abcd"));
+    }
+
+    #[test]
+    fn roundtrip_all_packet_types() {
+        for pt in [
+            PacketType::Command,
+            PacketType::CommandResponse,
+            PacketType::HistoricalData,
+            PacketType::Event,
+            PacketType::Metadata,
+            PacketType::ConsoleLogs,
+        ] {
+            let original = WhoopPacket::new(pt, 7, 3, vec![0x01, 0x02]);
+            let framed = original.framed_packet();
+            let parsed = WhoopPacket::from_data(framed).unwrap();
+            assert_eq!(parsed.packet_type, pt);
+            assert_eq!(parsed.seq, 7);
+            assert_eq!(parsed.cmd, 3);
+            assert_eq!(parsed.data, vec![0x01, 0x02]);
+        }
+    }
+
+    #[test]
+    fn empty_payload_creates_valid_frame() {
+        let packet = WhoopPacket::new(PacketType::Command, 0, 0, vec![]);
+        let framed = packet.framed_packet();
+        // SOF + 2 length + 1 CRC8 + 3 (type/seq/cmd) + 4 CRC32 = 11 bytes
+        assert_eq!(framed[0], WhoopPacket::SOF);
+        assert_eq!(framed.len(), 11);
     }
 }

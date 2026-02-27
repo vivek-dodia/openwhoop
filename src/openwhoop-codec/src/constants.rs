@@ -305,3 +305,73 @@ impl MetadataType {
         self as u8
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn packet_type_roundtrip() {
+        let types = [
+            PacketType::Command,
+            PacketType::CommandResponse,
+            PacketType::RealtimeData,
+            PacketType::HistoricalData,
+            PacketType::RealtimeRawData,
+            PacketType::Event,
+            PacketType::Metadata,
+            PacketType::ConsoleLogs,
+            PacketType::RealtimeImuDataStream,
+            PacketType::HistoricalImuDataStream,
+        ];
+        for pt in types {
+            assert_eq!(PacketType::from_u8(pt.as_u8()), Some(pt));
+        }
+    }
+
+    #[test]
+    fn packet_type_invalid_returns_none() {
+        assert!(PacketType::from_u8(0).is_none());
+        assert!(PacketType::from_u8(255).is_none());
+    }
+
+    #[test]
+    fn metadata_type_roundtrip() {
+        let types = [
+            MetadataType::HistoryStart,
+            MetadataType::HistoryEnd,
+            MetadataType::HistoryComplete,
+        ];
+        for mt in types {
+            assert_eq!(MetadataType::from_u8(mt.as_u8()), Some(mt));
+        }
+    }
+
+    #[test]
+    fn metadata_type_invalid_returns_none() {
+        assert!(MetadataType::from_u8(0).is_none());
+        assert!(MetadataType::from_u8(255).is_none());
+    }
+
+    #[test]
+    fn command_number_roundtrip_sample() {
+        let cmds = [
+            CommandNumber::LinkValid,
+            CommandNumber::ToggleRealtimeHr,
+            CommandNumber::SendHistoricalData,
+            CommandNumber::RebootStrap,
+            CommandNumber::EnterHighFreqSync,
+            CommandNumber::ToggleImuMode,
+            CommandNumber::ReportVersionInfo,
+        ];
+        for cmd in cmds {
+            assert_eq!(CommandNumber::from_u8(cmd.as_u8()), Some(cmd));
+        }
+    }
+
+    #[test]
+    fn command_number_invalid_returns_none() {
+        assert!(CommandNumber::from_u8(0).is_none());
+        assert!(CommandNumber::from_u8(200).is_none());
+    }
+}

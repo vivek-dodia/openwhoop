@@ -1,26 +1,35 @@
 use btleplug::api::ValueNotification;
 use chrono::{DateTime, Local, TimeDelta};
-use db_entities::packets;
+use openwhoop_entities::packets;
 use openwhoop_db::{DatabaseHandler, SearchHistory};
-use whoop::{
+use openwhoop_codec::{
     Activity, HistoryReading, WhoopData, WhoopPacket,
     constants::{CMD_FROM_STRAP, DATA_FROM_STRAP, MetadataType},
 };
 
 use crate::{
     algo::{
-        ActivityPeriod, MAX_SLEEP_PAUSE, SleepCycle, StressCalculator, helpers::format_hm::FormatHM,
+        ActivityPeriod, MAX_SLEEP_PAUSE, SkinTempCalculator, SleepCycle, SpO2Calculator,
+        StressCalculator, helpers::format_hm::FormatHM,
     },
     types::activities,
 };
 
 pub struct OpenWhoop {
     pub database: DatabaseHandler,
+    pub packet: Option<WhoopPacket>,
+    pub last_history_packet: Option<HistoryReading>,
+    pub history_packets: Vec<HistoryReading>,
 }
 
 impl OpenWhoop {
     pub fn new(database: DatabaseHandler) -> Self {
-        Self { database }
+        Self {
+            database,
+            packet: None,
+            last_history_packet: None,
+            history_packets: Vec::new(),
+        }
     }
 
     pub async fn store_packet(
@@ -36,45 +45,36 @@ impl OpenWhoop {
     }
 
     pub async fn handle_packet(
-        &self,
+        &mut self,
         packet: packets::Model,
     ) -> anyhow::Result<Option<WhoopPacket>> {
-        match packet.uuid {
+        let data = match packet.uuid {
             DATA_FROM_STRAP => {
-                let packet = WhoopPacket::from_data(packet.bytes)?;
+                let packet = if let Some(mut whoop_packet) = self.packet.take() {
+                    // TODO: maybe not needed but it would be nice to handle packet length here
+                    // so if next packet contains end of one and start of another it is handled
+
+                    whoop_packet.data.extend_from_slice(&packet.bytes);
+
+                    if whoop_packet.data.len() + 3 >= whoop_packet.size {
+                        whoop_packet
+                    } else {
+                        self.packet = Some(whoop_packet);
+                        return Ok(None);
+                    }
+                } else {
+                    let packet = WhoopPacket::from_data(packet.bytes)?;
+                    if packet.partial {
+                        self.packet = Some(packet);
+                        return Ok(None);
+                    }
+                    packet
+                };
 
                 let Ok(data) = WhoopData::from_packet(packet) else {
                     return Ok(None);
                 };
-                match data {
-                    WhoopData::HistoryReading(hr) if hr.is_valid() => {
-                        let HistoryReading {
-                            unix,
-                            bpm,
-                            rr,
-                            activity,
-                        } = hr;
-
-                        info!(target: "HistoryReading", "time: {}, bpm: {}", DateTime::from_timestamp(unix as i64, 0).unwrap().with_timezone(&Local).format("%Y-%m-%d %H:%M:%S"), bpm);
-                        self.database
-                            .create_reading(unix, bpm, rr, activity as i64)
-                            .await?;
-                    }
-                    WhoopData::HistoryMetadata { data, cmd, .. } => match cmd {
-                        MetadataType::HistoryComplete => return Ok(None),
-                        MetadataType::HistoryStart => {}
-                        MetadataType::HistoryEnd => {
-                            let packet = WhoopPacket::history_end(data);
-                            return Ok(Some(packet));
-                        }
-                    },
-                    WhoopData::ConsoleLog { log, .. } => {
-                        trace!(target: "ConsoleLog", "{}", log);
-                    }
-                    WhoopData::RunAlarm { .. } => {}
-                    WhoopData::Event { .. } => {}
-                    _ => {}
-                }
+                data
             }
             CMD_FROM_STRAP => {
                 let packet = WhoopPacket::from_data(packet.bytes)?;
@@ -82,14 +82,63 @@ impl OpenWhoop {
                 let Ok(data) = WhoopData::from_packet(packet) else {
                     return Ok(None);
                 };
-                if let WhoopData::VersionInfo { harvard, boylston } = data {
-                    info!("version harvard {} boylston {}", harvard, boylston);
-                    return Ok(Some(WhoopPacket::version()));
+
+                data
+            }
+            _ => return Ok(None),
+        };
+
+        self.handle_data(data).await
+    }
+
+    async fn handle_data(&mut self, data: WhoopData) -> anyhow::Result<Option<WhoopPacket>> {
+        match data {
+            WhoopData::HistoryReading(hr) if hr.is_valid() => {
+                if let Some(last_packet) = self.last_history_packet.as_mut() {
+                    if last_packet.unix == hr.unix && last_packet.bpm == hr.bpm {
+                        return Ok(None);
+                    } else {
+                        last_packet.unix = hr.unix;
+                        last_packet.bpm = hr.bpm;
+                    }
+                } else {
+                    self.last_history_packet = Some(hr.clone());
                 }
+
+                let ptime = DateTime::from_timestamp_millis(hr.unix as i64)
+                    .unwrap()
+                    .with_timezone(&Local)
+                    .format("%Y-%m-%d %H:%M:%S");
+
+                if hr.imu_data.is_empty() {
+                    info!(target: "HistoryReading", "time: {}", ptime);
+                } else {
+                    info!(target: "HistoryReading", "time: {}, (IMU)", ptime);
+                }
+
+                self.history_packets.push(hr);
             }
-            _ => {
-                // todo!()
+            WhoopData::HistoryMetadata { data, cmd, .. } => match cmd {
+                MetadataType::HistoryComplete => {}
+                MetadataType::HistoryStart => {}
+                MetadataType::HistoryEnd => {
+                    self.database
+                        .create_readings(std::mem::take(&mut self.history_packets))
+                        .await?;
+
+                    let packet = WhoopPacket::history_end(data);
+                    return Ok(Some(packet));
+                }
+            },
+            WhoopData::ConsoleLog { log, .. } => {
+                trace!(target: "ConsoleLog", "{}", log);
             }
+            WhoopData::RunAlarm { .. } => {}
+            WhoopData::Event { .. } => {}
+            WhoopData::VersionInfo { harvard, boylston } => {
+                info!("version harvard {} boylston {}", harvard, boylston);
+            }
+            _ => {}
         }
 
         Ok(None)
@@ -99,11 +148,13 @@ impl OpenWhoop {
         Ok(self.database.get_latest_sleep().await?.map(map_sleep_cycle))
     }
 
-    /// TODO: refactor: this will detect events until last sleep, so if function [`OpenWhoop::detect_sleeps`] has not been called for a week, this will not detect events in last week
     pub async fn detect_events(&self) -> anyhow::Result<()> {
+        let latest_activity = self.database.get_latest_activity().await?;
+        let start_from = latest_activity.map(|a| a.from);
+
         let sleeps = self
             .database
-            .get_sleep_cycles()
+            .get_sleep_cycles(start_from)
             .await?
             .windows(2)
             .map(|sleep| (sleep[0].id, sleep[0].end, sleep[1].start))
@@ -222,6 +273,59 @@ impl OpenWhoop {
         Ok(())
     }
 
+    pub async fn calculate_spo2(&self) -> anyhow::Result<()> {
+        loop {
+            let last = self.database.last_spo2_time().await?;
+            let options = SearchHistory {
+                from: last
+                    .map(|t| t - TimeDelta::seconds(SpO2Calculator::WINDOW_SIZE as i64)),
+                to: None,
+                limit: Some(86400),
+            };
+
+            let readings = self.database.search_sensor_readings(options).await?;
+            if readings.is_empty() || readings.len() <= SpO2Calculator::WINDOW_SIZE {
+                break;
+            }
+
+            let scores = readings
+                .windows(SpO2Calculator::WINDOW_SIZE)
+                .filter_map(SpO2Calculator::calculate);
+
+            for score in scores {
+                self.database.update_spo2_on_reading(score).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn calculate_skin_temp(&self) -> anyhow::Result<()> {
+        loop {
+            let readings = self
+                .database
+                .search_temp_readings(SearchHistory {
+                    limit: Some(86400),
+                    ..Default::default()
+                })
+                .await?;
+
+            if readings.is_empty() {
+                break;
+            }
+
+            for reading in &readings {
+                if let Some(score) =
+                    SkinTempCalculator::convert(reading.time, reading.skin_temp_raw)
+                {
+                    self.database.update_skin_temp_on_reading(score).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn calculate_stress(&self) -> anyhow::Result<()> {
         loop {
             let last_stress = self.database.last_stress_time().await?;
@@ -250,7 +354,7 @@ impl OpenWhoop {
     }
 }
 
-fn map_sleep_cycle(sleep: db_entities::sleep_cycles::Model) -> SleepCycle {
+fn map_sleep_cycle(sleep: openwhoop_entities::sleep_cycles::Model) -> SleepCycle {
     SleepCycle {
         id: sleep.end.date(),
         start: sleep.start,

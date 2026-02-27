@@ -187,4 +187,72 @@ mod tests {
         assert_eq!(metrics.start_time, DurationMetric::default());
         assert_eq!(metrics.score, ConsistencyScore::default());
     }
+
+    #[test]
+    fn perfectly_consistent_sleep() {
+        use chrono::{NaiveDate, TimeDelta};
+        use crate::SleepCycle;
+
+        let records: Vec<SleepCycle> = (0..7)
+            .map(|day| {
+                let start = NaiveDate::from_ymd_opt(2025, 1, 1 + day)
+                    .unwrap()
+                    .and_hms_opt(22, 0, 0)
+                    .unwrap();
+                let end = start + TimeDelta::hours(8);
+                SleepCycle {
+                    id: end.date(),
+                    start,
+                    end,
+                    min_bpm: 50,
+                    max_bpm: 70,
+                    avg_bpm: 60,
+                    min_hrv: 30,
+                    max_hrv: 80,
+                    avg_hrv: 55,
+                    score: 100.0,
+                }
+            })
+            .collect();
+
+        let analyzer = SleepConsistencyAnalyzer::new(records);
+        let metrics = analyzer.calculate_consistency_metrics();
+
+        // Zero variance -> CV = 0 -> all scores = 100
+        assert_eq!(metrics.score.duration_score, 100.0);
+        assert_eq!(metrics.score.timing_score, 100.0);
+        assert_eq!(metrics.score.total_score, 100.0);
+    }
+
+    #[test]
+    fn single_sleep_record() {
+        use chrono::NaiveDate;
+        use crate::SleepCycle;
+
+        let start = NaiveDate::from_ymd_opt(2025, 1, 1)
+            .unwrap()
+            .and_hms_opt(22, 0, 0)
+            .unwrap();
+        let end = NaiveDate::from_ymd_opt(2025, 1, 2)
+            .unwrap()
+            .and_hms_opt(6, 0, 0)
+            .unwrap();
+        let records = vec![SleepCycle {
+            id: end.date(),
+            start,
+            end,
+            min_bpm: 50,
+            max_bpm: 70,
+            avg_bpm: 60,
+            min_hrv: 30,
+            max_hrv: 80,
+            avg_hrv: 55,
+            score: 100.0,
+        }];
+
+        let analyzer = SleepConsistencyAnalyzer::new(records);
+        let metrics = analyzer.calculate_consistency_metrics();
+
+        assert_eq!(metrics.score.duration_score, 100.0);
+    }
 }

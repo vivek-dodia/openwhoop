@@ -54,7 +54,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-enum Activities {
+pub enum Activities {
     Table,
     Id,
     PeriodId,

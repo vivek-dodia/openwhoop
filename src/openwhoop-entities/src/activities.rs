@@ -12,6 +12,7 @@ pub struct Model {
     pub start: DateTime,
     pub end: DateTime,
     pub activity: String,
+    pub synced: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

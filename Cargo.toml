@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "src/whoop",
-    "src/sea-migrations",
-    "src/db-entities",
+    "src/openwhoop-codec",
+    "src/openwhoop-migration",
+    "src/openwhoop-entities",
     "src/openwhoop",
     "src/openwhoop-algos",
     "src/openwhoop-types",

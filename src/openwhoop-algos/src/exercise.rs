@@ -65,4 +65,36 @@ mod tests {
         assert_eq!(metrics.mean_duration, TimeDelta::default());
         assert_eq!(metrics.total_duration, TimeDelta::default());
     }
+
+    #[test]
+    fn test_metrics_with_exercises() {
+        use chrono::NaiveDate;
+        use openwhoop_types::activities::{ActivityPeriod, ActivityType};
+
+        let base = NaiveDate::from_ymd_opt(2025, 1, 1)
+            .unwrap()
+            .and_hms_opt(8, 0, 0)
+            .unwrap();
+
+        let exercises = vec![
+            ActivityPeriod {
+                period_id: base.date(),
+                from: base,
+                to: base + TimeDelta::hours(1),
+                activity: ActivityType::Running,
+            },
+            ActivityPeriod {
+                period_id: base.date(),
+                from: base + TimeDelta::hours(4),
+                to: base + TimeDelta::hours(5),
+                activity: ActivityType::Cycling,
+            },
+        ];
+
+        let metrics = ExerciseMetrics::new(exercises);
+        assert_eq!(metrics.count, 2);
+        assert_eq!(metrics.total_duration, TimeDelta::hours(2));
+        assert_eq!(metrics.mean_duration, TimeDelta::hours(1));
+        assert_eq!(metrics.duration_std, TimeDelta::seconds(0)); // identical durations
+    }
 }

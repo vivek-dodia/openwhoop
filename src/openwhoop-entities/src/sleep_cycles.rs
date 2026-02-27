@@ -19,6 +19,7 @@ pub struct Model {
     pub avg_hrv: i32,
     #[sea_orm(column_type = "Double", nullable)]
     pub score: Option<f64>,
+    pub synced: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

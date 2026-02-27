@@ -11,6 +11,8 @@ pub use device::WhoopDevice;
 mod openwhoop;
 pub use openwhoop::OpenWhoop;
 
+pub mod api;
+
 pub mod algo {
     pub use openwhoop_algos::*;
 }

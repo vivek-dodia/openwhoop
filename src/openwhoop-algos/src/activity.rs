@@ -1,5 +1,5 @@
 use chrono::{Duration, NaiveDateTime, TimeDelta};
-use whoop::{Activity, ParsedHistoryReading};
+use openwhoop_codec::{Activity, ParsedHistoryReading};
 
 const ACTIVITY_CHANGE_THRESHOLD: Duration = Duration::minutes(15);
 const MIN_SLEEP_DURATION: Duration = Duration::minutes(60);
@@ -104,7 +104,7 @@ impl ActivityPeriod {
                         start: prev.start,
                         end: activities[i + 1].end,
                     });
-                    i += 1; // Skip next since it’s merged
+                    i += 1; // Skip next since it's merged
                 } else if i + 1 < activities.len() {
                     // Merge with next
                     activities[i + 1] = TempActivity {
@@ -163,5 +163,169 @@ impl ActivityPeriod {
         }
 
         periods
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn make_reading(minutes: i64, activity: Activity) -> ParsedHistoryReading {
+        let base = NaiveDate::from_ymd_opt(2025, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        ParsedHistoryReading {
+            time: base + Duration::minutes(minutes),
+            bpm: 70,
+            rr: vec![],
+            activity,
+            imu_data: None,
+        }
+    }
+
+    fn make_readings(specs: &[(i64, Activity)]) -> Vec<ParsedHistoryReading> {
+        specs.iter().map(|&(m, a)| make_reading(m, a)).collect()
+    }
+
+    #[test]
+    fn detect_empty_history() {
+        let periods = ActivityPeriod::detect(&mut []);
+        assert!(periods.is_empty());
+    }
+
+    #[test]
+    fn detect_single_activity_type() {
+        let mut history = make_readings(
+            &(0..30).map(|m| (m, Activity::Active)).collect::<Vec<_>>(),
+        );
+        let periods = ActivityPeriod::detect(&mut history);
+        assert_eq!(periods.len(), 1);
+        assert!(matches!(periods[0].activity, Activity::Active));
+    }
+
+    #[test]
+    fn detect_splits_on_activity_change() {
+        // 20 min active, then 20 min sleep - each segment is > 15 min threshold
+        let mut specs: Vec<(i64, Activity)> = (0..20).map(|m| (m, Activity::Active)).collect();
+        specs.extend((20..40).map(|m| (m, Activity::Sleep)));
+        let mut history = make_readings(&specs);
+        let periods = ActivityPeriod::detect(&mut history);
+        assert_eq!(periods.len(), 2);
+        assert!(matches!(periods[0].activity, Activity::Active));
+        assert!(matches!(periods[1].activity, Activity::Sleep));
+    }
+
+    #[test]
+    fn detect_splits_on_time_gap() {
+        // Same activity but >10 min gap - detected as two periods, but short ones get merged
+        // Make each segment > 15 min to survive filter_merge
+        let mut specs: Vec<(i64, Activity)> = (0..20).map(|m| (m, Activity::Active)).collect();
+        // 15 min gap (> MAX_PAUSE of 10 min), then another 20 min block
+        specs.extend((35..55).map(|m| (m, Activity::Active)));
+        let mut history = make_readings(&specs);
+        let periods = ActivityPeriod::detect(&mut history);
+        // Both segments are same activity, gap causes split, filter_merge may re-merge
+        // since they're the same activity type. At minimum we get >= 1 period.
+        assert!(!periods.is_empty());
+    }
+
+    #[test]
+    fn smooth_spikes_removes_single_point_spike() {
+        let mut history = make_readings(&[
+            (0, Activity::Sleep),
+            (1, Activity::Active), // spike
+            (2, Activity::Sleep),
+        ]);
+        ActivityPeriod::smooth_spikes(&mut history);
+        assert!(matches!(history[1].activity, Activity::Sleep));
+    }
+
+    #[test]
+    fn smooth_spikes_no_change_on_short_data() {
+        let mut history = make_readings(&[(0, Activity::Sleep), (1, Activity::Active)]);
+        ActivityPeriod::smooth_spikes(&mut history);
+        // Should not panic or change anything for len < 3
+        assert!(matches!(history[1].activity, Activity::Active));
+    }
+
+    #[test]
+    fn is_active_returns_true_for_active() {
+        let period = ActivityPeriod {
+            activity: Activity::Active,
+            start: NaiveDate::from_ymd_opt(2025, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            end: NaiveDate::from_ymd_opt(2025, 1, 1)
+                .unwrap()
+                .and_hms_opt(1, 0, 0)
+                .unwrap(),
+            duration: Duration::hours(1),
+        };
+        assert!(period.is_active());
+    }
+
+    #[test]
+    fn is_active_returns_false_for_sleep() {
+        let period = ActivityPeriod {
+            activity: Activity::Sleep,
+            start: NaiveDate::from_ymd_opt(2025, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            end: NaiveDate::from_ymd_opt(2025, 1, 1)
+                .unwrap()
+                .and_hms_opt(1, 0, 0)
+                .unwrap(),
+            duration: Duration::hours(1),
+        };
+        assert!(!period.is_active());
+    }
+
+    #[test]
+    fn find_sleep_returns_long_sleep() {
+        let base = NaiveDate::from_ymd_opt(2025, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let mut events = vec![
+            ActivityPeriod {
+                activity: Activity::Active,
+                start: base,
+                end: base + Duration::minutes(30),
+                duration: Duration::minutes(30),
+            },
+            ActivityPeriod {
+                activity: Activity::Sleep,
+                start: base + Duration::minutes(30),
+                end: base + Duration::minutes(300),
+                duration: Duration::minutes(270),
+            },
+        ];
+        let sleep = ActivityPeriod::find_sleep(&mut events);
+        assert!(sleep.is_some());
+        assert!(matches!(sleep.unwrap().activity, Activity::Sleep));
+    }
+
+    #[test]
+    fn find_sleep_ignores_short_sleep() {
+        let base = NaiveDate::from_ymd_opt(2025, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let mut events = vec![ActivityPeriod {
+            activity: Activity::Sleep,
+            start: base,
+            end: base + Duration::minutes(30),
+            duration: Duration::minutes(30),
+        }];
+        assert!(ActivityPeriod::find_sleep(&mut events).is_none());
+    }
+
+    #[test]
+    fn find_sleep_empty_returns_none() {
+        assert!(ActivityPeriod::find_sleep(&mut vec![]).is_none());
     }
 }

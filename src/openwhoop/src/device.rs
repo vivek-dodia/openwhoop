@@ -3,7 +3,7 @@ use btleplug::{
     api::{Central, CharPropFlags, Characteristic, Peripheral as _, WriteType},
     platform::{Adapter, Peripheral},
 };
-use db_entities::packets::Model;
+use openwhoop_entities::packets::Model;
 use futures::StreamExt;
 use std::{
     collections::BTreeSet,
@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
-use whoop::{
+use openwhoop_codec::{
     WhoopData, WhoopPacket,
     constants::{
         CMD_FROM_STRAP, CMD_TO_STRAP, DATA_FROM_STRAP, EVENTS_FROM_STRAP, MEMFAULT, WHOOP_SERVICE,
@@ -50,6 +50,7 @@ impl WhoopDevice {
         self.peripheral.connect().await?;
         let _ = self.adapter.stop_scan().await;
         self.peripheral.discover_services().await?;
+        self.whoop.packet = None;
         Ok(())
     }
 
@@ -101,8 +102,7 @@ impl WhoopDevice {
 
     pub async fn sync_history(&mut self, should_exit: Arc<AtomicBool>) -> anyhow::Result<()> {
         let mut notifications = self.peripheral.notifications().await?;
-        // self.send_command(WhoopPacket::toggle_r7_data_collection())
-        //     .await?;
+
         self.send_command(WhoopPacket::history_start()).await?;
 
         'a: loop {
