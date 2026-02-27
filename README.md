@@ -39,7 +39,7 @@ df = pd.read_sql(QUERY, DATABASE_URL)
 
 ## TODO:
 
-- [ ] Sleep detection, for most of things like strain, recovery, HRV, etc..., I have been able to reverse engineer calculations, but I need reverse engineer sleep detection and activity detection before they can be automatically calculated
+- [x] Sleep detection, for most of things like strain, recovery, HRV, etc..., I have been able to reverse engineer calculations, but I need reverse engineer sleep detection and activity detection before they can be automatically calculated
 - [ ] Mobile/Desktop app
-- [ ] Sp02 readings
-- [ ] Temperature readings
+- [x] Sp02 readings
+- [x] Temperature readings

@@ -4,17 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.97"
-chrono = "0.4.40"
-openwhoop-entities = { version = "0.1.0", path = "../openwhoop-entities" }
-openwhoop-algos = { version = "0.1.0", path = "../openwhoop-algos" }
-openwhoop-migration = { version = "0.1.0", path = "../openwhoop-migration" }
-openwhoop-types = { version = "0.1.0", path = "../openwhoop-types" }
-indicatif = "0.17"
-sea-orm = "1.1.8"
-serde_json = "1.0.140"
-uuid = { version = "1.16.0", features = ["v4"] }
-openwhoop-codec = { version = "0.1.0", path = "../openwhoop-codec" }
+anyhow.workspace = true
+chrono.workspace = true
+indicatif.workspace = true
+openwhoop-algos.workspace = true
+openwhoop-codec.workspace = true
+openwhoop-entities.workspace = true
+openwhoop-migration.workspace = true
+openwhoop-types.workspace = true
+sea-orm.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio.workspace = true
